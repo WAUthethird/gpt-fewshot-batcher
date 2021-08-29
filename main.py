@@ -1,4 +1,10 @@
 import PySimpleGUI as sg
+import configparser
+
+from aitextgen import aitextgen
+import torch
+import cpuinfo
+from psutil import virtual_memory
 
 sg.theme('Dark Blue 3')
 
@@ -37,7 +43,56 @@ main_layout = [[sg.Menu(menu_def)],
                [sg.Text('Output')],
                [sg.Multiline('', size=(100,10))]]
 
+model_window_layout = [[sg.Text('Test Window')],
+                       [sg.Button('OK')]]
+
 window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0,0))
 
-event, values = window.read()
+""" event, values = window.read()
+event, values = model_window.read() """
 window.close()
+
+def first_boot():
+    if torch.cuda.is_available():
+        gpusupport = 'YES'
+        devicename = torch.cuda.get_device_name()
+        deviceramtext = 'GPU VRAM: '
+        deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 **3)))
+        devicecolor = 'lightgreen'
+    else:
+        gpusupport = 'NO'
+        devicename = 'Will run on '+str(cpuinfo.get_cpu_info()['brand_raw'])+' instead'
+        deviceramtext = 'System RAM: '
+        deviceram = str(round(virtual_memory().total / (1024.0 **3)))
+        devicecolor = 'red'
+
+    layout = [[sg.Text("First boot detected! It is recommended that you select and download an AI model before continuing.")],
+              [sg.Text("GPU detected:"), sg.Text(gpusupport+" - "+devicename, text_color = devicecolor)],
+              [sg.Text(deviceramtext), sg.Text(deviceram+" GB", text_color = devicecolor)],
+              [sg.Text("Available models:")],
+              [sg.Combo(['No model', 'GPT-Neo 125M', 'GPT-Neo 1.3B', 'GPT-Neo 2.7B', 'GPT-2 124M', 'GPT-2 355M', 'GPT-2 774M', 'GPT-2 1558M'], key='-MODEL-', enable_events=True)],
+              [sg.Column([[sg.Button("Select & Download", key='-SELECT-', visible=False), sg.Button("Exit", key='-EXIT-')]], justification='center', vertical_alignment='top')]]
+    window = sg.Window("Model Selection", layout, modal=True)
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED:
+            break
+        if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
+            window['-SELECT-'].update(visible=True)
+        else:
+            window['-SELECT-'].update(visible=False)
+        if event == '-EXIT-' and values['-MODEL-'] == 'No model' or values['-MODEL-'] == '':
+            print('Trying to popup!')
+            if sg.popup_yes_no('Are you sure you want to use GPT Fewshot Batcher with no model selected and downloaded? You won\'t be able to generate or tokenize anything!', title="Confirm No Model", keep_on_top = True) == 'Yes':
+                print('okay then')
+    window.close()
+
+def main():
+    try:
+        configfile = open("config.ini", 'r+')
+    except FileNotFoundError:
+        # configfile = open("config.ini", 'w+')
+        first_boot()
+
+if __name__ == "__main__":
+    main()
