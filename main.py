@@ -55,20 +55,23 @@ window.close()
 def first_boot():
     if torch.cuda.is_available():
         gpusupport = 'YES'
+        showgpustuff = True
         devicename = torch.cuda.get_device_name()
         deviceramtext = 'GPU VRAM: '
         deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 **3)))
         devicecolor = 'lightgreen'
     else:
         gpusupport = 'NO'
+        showgpustuff = False
         devicename = 'Will run on '+str(cpuinfo.get_cpu_info()['brand_raw'])+' instead'
         deviceramtext = 'System RAM: '
         deviceram = str(round(virtual_memory().total / (1024.0 **3)))
         devicecolor = 'red'
 
     layout = [[sg.Text("First boot detected! It is recommended that you select and download an AI model before continuing.")],
-              [sg.Text("GPU detected:"), sg.Text(gpusupport+" - "+devicename, text_color = devicecolor)],
-              [sg.Text(deviceramtext), sg.Text(deviceram+" GB", text_color = devicecolor)],
+              [sg.Text("GPU detected:"), sg.Text(text = gpusupport+" - "+devicename, text_color = devicecolor, key='-GPUSUPPORTTEXT-')],
+              [sg.Text(deviceramtext), sg.Text(deviceram+" GB", text_color = devicecolor, key='-DEVICERAMTEXT-')],
+              [sg.Checkbox('GPU Enabled', default=showgpustuff, visible=showgpustuff, key='-GPUCHECKBOX-', enable_events=True)],
               [sg.Text("Available models:")],
               [sg.Combo(['No model', 'GPT-Neo 125M', 'GPT-Neo 1.3B', 'GPT-Neo 2.7B', 'GPT-2 124M', 'GPT-2 355M', 'GPT-2 774M', 'GPT-2 1558M'], key='-MODEL-', enable_events=True)],
               [sg.Column([[sg.Button("Select & Download", key='-SELECT-', visible=False), sg.Button("Exit", key='-EXIT-')]], justification='center', vertical_alignment='top')]]
@@ -81,8 +84,22 @@ def first_boot():
             window['-SELECT-'].update(visible=True)
         else:
             window['-SELECT-'].update(visible=False)
+        if event == '-GPUCHECKBOX-' and gpusupport == 'YES':
+            if values['-GPUCHECKBOX-'] == False:
+                gpusupport = 'NO'
+                devicename = 'Will run on '+str(cpuinfo.get_cpu_info()['brand_raw'])+' instead'
+                deviceramtext = 'System RAM: '
+                deviceram = str(round(virtual_memory().total / (1024.0 **3)))
+                devicecolor = 'red'
+            else:
+                gpusupport = 'YES'
+                devicename = torch.cuda.get_device_name()
+                deviceramtext = 'GPU VRAM: '
+                deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 **3)))
+                devicecolor = 'lightgreen'
+            window['-GPUSUPPORTTEXT-'].update(text = gpusupport+" - "+devicename, text_color = devicecolor)
+            window['-DEVICERAMTEXT-'].update(deviceram+" GB", text_color = devicecolor)
         if event == '-EXIT-' and values['-MODEL-'] == 'No model' or values['-MODEL-'] == '':
-            print('Trying to popup!')
             if sg.popup_yes_no('Are you sure you want to use GPT Fewshot Batcher with no model selected and downloaded? You won\'t be able to generate or tokenize anything!', title="Confirm No Model", keep_on_top = True) == 'Yes':
                 print('okay then')
     window.close()
