@@ -91,7 +91,8 @@ def first_boot():
             break
         if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
             window['-SELECT-'].update(visible=True)
-            window['-FP16CHECKBOX-'].update(visible=True)
+            if showgpustuff == True:
+                window['-FP16CHECKBOX-'].update(visible=True)
             if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] == True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
                 window['-CANTRUNMODEL-'].update(visible=False)
                 window['-CANRUNMODEL-'].update(visible=True)
@@ -131,7 +132,6 @@ def first_boot():
             window['-DEVICERAMTEXT-'].update(deviceram+" GB", text_color = devicecolor)
         if event == '-FP16CHECKBOX-':
             use_fp16 = values['-FP16CHECKBOX-']
-            print(use_fp16)
         if event == '-SELECT-' and not values['-MODEL-'] == 'No model':
             if sg.popup_yes_no('Are you sure you want to download the '+values['-MODEL-']+' model?', title="Confirm Model Selection", keep_on_top = True) == 'Yes':
                 print('ok')
