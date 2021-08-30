@@ -8,6 +8,8 @@ from psutil import virtual_memory
 
 sg.theme('Dark Blue 3')
 
+min_memory_reqs = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10}
+
 menu_def = [['&File', ['COULD DO MORE STUFF HERE', '&Options', 'E&xit']],
             ['&Help', ['&About']]]
 
@@ -74,6 +76,7 @@ def first_boot():
               [sg.Checkbox('GPU Enabled', default=showgpustuff, visible=showgpustuff, key='-GPUCHECKBOX-', enable_events=True)],
               [sg.Text("Available models:")],
               [sg.Combo(['No model', 'GPT-Neo 125M', 'GPT-Neo 1.3B', 'GPT-Neo 2.7B', 'GPT-2 124M', 'GPT-2 355M', 'GPT-2 774M', 'GPT-2 1558M'], key='-MODEL-', enable_events=True)],
+              [sg.Text("Great! You should be able to run this model!", text_color = 'lightgreen', visible=False, key='-CANRUNMODEL-'), sg.Text("Uh oh... it looks like you don't meet the minimum memory requirements for this model. You can still try to run it, but it may not work.", text_color = 'red', visible=False, key='-CANTRUNMODEL-')],
               [sg.Column([[sg.Button("Select & Download", key='-SELECT-', visible=False), sg.Button("Exit", key='-EXIT-')]], justification='center', vertical_alignment='top')]]
     window = sg.Window("Model Selection", layout, modal=True)
     while True:
@@ -82,7 +85,15 @@ def first_boot():
             break
         if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
             window['-SELECT-'].update(visible=True)
+            if int(deviceram) >= min_memory_reqs[values['-MODEL-']]:
+                window['-CANTRUNMODEL-'].update(visible=False)
+                window['-CANRUNMODEL-'].update(visible=True)
+            else:
+                window['-CANTRUNMODEL-'].update(visible=True)
+                window['-CANRUNMODEL-'].update(visible=False)
         else:
+            window['-CANTRUNMODEL-'].update(visible=False)
+            window['-CANRUNMODEL-'].update(visible=False)
             window['-SELECT-'].update(visible=False)
         if event == '-GPUCHECKBOX-' and showgpustuff == True:
             if values['-GPUCHECKBOX-'] == False:
