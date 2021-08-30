@@ -108,6 +108,16 @@ def first_boot():
                 deviceramtext = 'GPU VRAM: '
                 deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 **3)))
                 devicecolor = 'lightgreen'
+            if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
+                if int(deviceram) >= min_memory_reqs[values['-MODEL-']]:
+                    window['-CANTRUNMODEL-'].update(visible=False)
+                    window['-CANRUNMODEL-'].update(visible=True)
+                else:
+                    window['-CANTRUNMODEL-'].update(visible=True)
+                    window['-CANRUNMODEL-'].update(visible=False)
+            else:
+                window['-CANTRUNMODEL-'].update(visible=False)
+                window['-CANRUNMODEL-'].update(visible=False)
             window['-DEVICERAMPREFIX-'].update(deviceramtext)
             window['-GPUSUPPORTTEXT-'].update(gpusupport+" - "+devicename, text_color = devicecolor)
             window['-DEVICERAMTEXT-'].update(deviceram+" GB", text_color = devicecolor)
