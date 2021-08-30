@@ -1,5 +1,6 @@
 import PySimpleGUI as sg
 import configparser
+import time
 
 from aitextgen import aitextgen
 import torch
@@ -8,7 +9,7 @@ from psutil import virtual_memory
 
 sg.theme('Dark Blue 3')
 
-min_memory_reqs = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10}
+model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
 
 menu_def = [['&File', ['COULD DO MORE STUFF HERE', '&Options', 'E&xit']],
             ['&Help', ['&About']]]
@@ -55,6 +56,10 @@ event, values = model_window.read() """
 window.close()
 
 def first_boot():
+    ai = None
+    model_name = None
+    tokenizer = None
+    use_fp16 = False
     if torch.cuda.is_available():
         gpusupport = 'YES'
         showgpustuff = True
@@ -68,15 +73,16 @@ def first_boot():
         devicename = 'Will run on '+str(cpuinfo.get_cpu_info()['brand_raw'])+' instead'
         deviceramtext = 'System RAM: '
         deviceram = str(round(virtual_memory().total / (1024.0 **3)))
-        devicecolor = 'red'
+        devicecolor = 'orange'
 
     layout = [[sg.Text("First boot detected! It is recommended that you select and download an AI model before continuing.")],
               [sg.Text("GPU detected:"), sg.Text(gpusupport+" - "+devicename, text_color = devicecolor, key='-GPUSUPPORTTEXT-')],
               [sg.Text(deviceramtext, key='-DEVICERAMPREFIX-'), sg.Text(deviceram+" GB", text_color = devicecolor, key='-DEVICERAMTEXT-')],
               [sg.Checkbox('GPU Enabled', default=showgpustuff, visible=showgpustuff, key='-GPUCHECKBOX-', enable_events=True)],
               [sg.Text("Available models:")],
-              [sg.Combo(['No model', 'GPT-Neo 125M', 'GPT-Neo 1.3B', 'GPT-Neo 2.7B', 'GPT-2 124M', 'GPT-2 355M', 'GPT-2 774M', 'GPT-2 1558M'], key='-MODEL-', enable_events=True)],
-              [sg.Text("Great! You should be able to run this model!", text_color = 'lightgreen', visible=False, key='-CANRUNMODEL-'), sg.Text("Uh oh... it looks like you don't meet the minimum memory requirements for this model. You can still try to run it, but it may not work.", text_color = 'red', visible=False, key='-CANTRUNMODEL-')],
+              [sg.Combo(['No model', 'GPT-Neo 125M', 'GPT-Neo 1.3B', 'GPT-Neo 2.7B', 'GPT-2 124M', 'GPT-2 355M', 'GPT-2 774M', 'GPT-2 1558M'], key='-MODEL-', enable_events=True), sg.Checkbox('FP16', default=use_fp16, visible=False, key='-FP16CHECKBOX-', enable_events=True)],
+              [sg.Text("Great! You should be able to run this model!", text_color = 'lightgreen', visible=False, key='-CANRUNMODEL-'), sg.Text("Uh oh... it looks like you don't meet the minimum memory requirements for this model. You can still try to run it, but it may not work.", text_color = 'orange', visible=False, key='-CANTRUNMODEL-')],
+              [sg.ProgressBar(1000, orientation='h', size=(20, 20), key='-MODELDOWNLOAD-')],
               [sg.Column([[sg.Button("Select & Download", key='-SELECT-', visible=False), sg.Button("Exit", key='-EXIT-')]], justification='center', vertical_alignment='top')]]
     window = sg.Window("Model Selection", layout, modal=True)
     while True:
@@ -85,7 +91,8 @@ def first_boot():
             break
         if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
             window['-SELECT-'].update(visible=True)
-            if int(deviceram) >= min_memory_reqs[values['-MODEL-']]:
+            window['-FP16CHECKBOX-'].update(visible=True)
+            if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] == True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
                 window['-CANTRUNMODEL-'].update(visible=False)
                 window['-CANRUNMODEL-'].update(visible=True)
             else:
@@ -95,6 +102,7 @@ def first_boot():
             window['-CANTRUNMODEL-'].update(visible=False)
             window['-CANRUNMODEL-'].update(visible=False)
             window['-SELECT-'].update(visible=False)
+            window['-FP16CHECKBOX-'].update(visible=False)
         if event == '-GPUCHECKBOX-' and showgpustuff == True:
             if values['-GPUCHECKBOX-'] == False:
                 gpusupport = 'NO'
@@ -109,7 +117,7 @@ def first_boot():
                 deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 **3)))
                 devicecolor = 'lightgreen'
             if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
-                if int(deviceram) >= min_memory_reqs[values['-MODEL-']]:
+                if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] == True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
                     window['-CANTRUNMODEL-'].update(visible=False)
                     window['-CANRUNMODEL-'].update(visible=True)
                 else:
@@ -121,6 +129,15 @@ def first_boot():
             window['-DEVICERAMPREFIX-'].update(deviceramtext)
             window['-GPUSUPPORTTEXT-'].update(gpusupport+" - "+devicename, text_color = devicecolor)
             window['-DEVICERAMTEXT-'].update(deviceram+" GB", text_color = devicecolor)
+        if event == '-FP16CHECKBOX-':
+            use_fp16 = values['-FP16CHECKBOX-']
+            print(use_fp16)
+        if event == '-SELECT-' and not values['-MODEL-'] == 'No model':
+            if sg.popup_yes_no('Are you sure you want to download the '+values['-MODEL-']+' model?', title="Confirm Model Selection", keep_on_top = True) == 'Yes':
+                print('ok')
+            # for i in range(1000):
+            #    window['-MODELDOWNLOAD-'].UpdateBar(i + 10)
+            #    time.sleep(1)
         if event == '-EXIT-' and (values['-MODEL-'] == 'No model' or not values['-MODEL-']):
             if sg.popup_yes_no('Are you sure you want to use GPT Fewshot Batcher with no model selected and downloaded? You won\'t be able to generate or tokenize anything!', title="Confirm No Model", keep_on_top = True) == 'Yes':
                 print('okay then')
