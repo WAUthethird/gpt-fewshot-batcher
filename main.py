@@ -75,15 +75,15 @@ def first_boot():
     else:
         gpusupport = 'NO'
         showgpustuff = False
-        devicename = 'Will run on '+str(cpuinfo.get_cpu_info()['brand_raw'])+' instead'
+        devicename = f"Will run on {str(cpuinfo.get_cpu_info()['brand_raw'])} instead"
         deviceramtext = 'System RAM: '
         deviceram = str(round(virtual_memory().total / (1024.0 **3)))
         devicecolor = 'orange'
         gpubool = False
 
     layout = [[sg.Text("First boot detected! It is recommended that you select and download an AI model before continuing.")],
-              [sg.Text("GPU detected:"), sg.Text(gpusupport+" - "+devicename, text_color = devicecolor, key='-GPUSUPPORTTEXT-')],
-              [sg.Text(deviceramtext, key='-DEVICERAMPREFIX-'), sg.Text(deviceram+" GB", text_color = devicecolor, key='-DEVICERAMTEXT-')],
+              [sg.Text("GPU detected:"), sg.Text(f"{gpusupport} - {devicename}", text_color = devicecolor, key='-GPUSUPPORTTEXT-')],
+              [sg.Text(deviceramtext, key='-DEVICERAMPREFIX-'), sg.Text(f"{deviceram} GB", text_color = devicecolor, key='-DEVICERAMTEXT-')],
               [sg.Checkbox('GPU Enabled', default=showgpustuff, visible=showgpustuff, key='-GPUCHECKBOX-', enable_events=True)],
               [sg.Text("Available models:")],
               [sg.Combo(['No model', 'GPT-Neo 125M', 'GPT-Neo 1.3B', 'GPT-Neo 2.7B', 'GPT-2 124M', 'GPT-2 355M', 'GPT-2 774M', 'GPT-2 1558M'], key='-MODEL-', enable_events=True), sg.Checkbox('FP16', default=use_fp16, visible=False, key='-FP16CHECKBOX-', enable_events=True)],
@@ -96,7 +96,7 @@ def first_boot():
             break
         if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
             window['-SELECT-'].update(visible=True)
-            if showgpustuff == True:
+            if gpubool == True:
                 window['-FP16CHECKBOX-'].update(visible=True)
             if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] == True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
                 window['-CANTRUNMODEL-'].update(visible=False)
@@ -112,11 +112,13 @@ def first_boot():
         if event == '-GPUCHECKBOX-' and showgpustuff == True:
             if values['-GPUCHECKBOX-'] == False:
                 gpusupport = 'NO'
-                devicename = 'Will run on '+str(cpuinfo.get_cpu_info()['brand_raw'])+' instead'
+                devicename = f"Will run on {str(cpuinfo.get_cpu_info()['brand_raw'])} instead"
                 deviceramtext = 'System RAM: '
                 deviceram = str(round(virtual_memory().total / (1024.0 **3)))
                 devicecolor = 'red'
                 gpubool = False
+                use_fp16 = False
+                window['-FP16CHECKBOX-'].update(visible=False)
             else:
                 gpusupport = 'YES'
                 devicename = torch.cuda.get_device_name()
@@ -124,6 +126,8 @@ def first_boot():
                 deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 **3)))
                 devicecolor = 'lightgreen'
                 gpubool = True
+                if not values['-MODEL-'] == '' and not values['-MODEL-'] == 'No model':
+                    window['-FP16CHECKBOX-'].update(visible=True)
             if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
                 if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] == True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
                     window['-CANTRUNMODEL-'].update(visible=False)
@@ -135,17 +139,17 @@ def first_boot():
                 window['-CANTRUNMODEL-'].update(visible=False)
                 window['-CANRUNMODEL-'].update(visible=False)
             window['-DEVICERAMPREFIX-'].update(deviceramtext)
-            window['-GPUSUPPORTTEXT-'].update(gpusupport+" - "+devicename, text_color = devicecolor)
-            window['-DEVICERAMTEXT-'].update(deviceram+" GB", text_color = devicecolor)
+            window['-GPUSUPPORTTEXT-'].update(f"{gpusupport} - {devicename}", text_color = devicecolor)
+            window['-DEVICERAMTEXT-'].update(f"{deviceram} GB", text_color = devicecolor)
         if event == '-FP16CHECKBOX-':
             use_fp16 = values['-FP16CHECKBOX-']
         if event == '-SELECT-' and not values['-MODEL-'] == 'No model':
-            if sg.popup_yes_no('Are you sure you want to download the '+values['-MODEL-']+' model?', title="Confirm Model Selection", keep_on_top=True, modal=True) == 'Yes':
+            if sg.popup_yes_no(f"Are you sure you want to download the {values['-MODEL-']} model?", title="Confirm Model Selection", keep_on_top=True, modal=True) == 'Yes':
                 if model_info['model_type'][values['-MODEL-']] == 'tf_gpt2':
-                    ai = aitextgen(tf_gpt2=model_info['model_type']['tfgpt2'][values['-MODEL-']], to_gpu=gpubool, to_fp16=use_fp16, cache_dir='./models/gpt2-' + model_info['model_type']['tfgpt2'][values['-MODEL-']])
+                    ai = aitextgen(tf_gpt2=model_info['model_type']['tfgpt2'][values['-MODEL-']], to_gpu=gpubool, to_fp16=use_fp16, cache_dir=f"./models/gpt2-{model_info['model_type']['tfgpt2'][values['-MODEL-']]}")
                     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
                 else:
-                    ai = aitextgen(model=model_info['model_type']['nongpt2'][values['-MODEL-']], to_gpu=gpubool, to_fp16=use_fp16, cache_dir='./models/' + model_info['model_type']['nongpt2'][values['-MODEL-']])
+                    ai = aitextgen(model=model_info['model_type']['nongpt2'][values['-MODEL-']], to_gpu=gpubool, to_fp16=use_fp16, cache_dir=f"./models/{model_info['model_type']['nongpt2'][values['-MODEL-']]}")
                     tokenizer = GPT2Tokenizer.from_pretrained(model_info['model_type']['nongpt2'][values['-MODEL-']])
                 break
         if event == '-EXIT-' and (values['-MODEL-'] == 'No model' or not values['-MODEL-']):
