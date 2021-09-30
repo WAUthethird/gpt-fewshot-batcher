@@ -16,6 +16,12 @@ def initialize_config():
     config['nomodel'] = None
     config['defaultmodel'] = None
     config['model_type'] = None
+    config['model_length'] = 128
+    config['model_temp'] = 0.9
+    config['model_rep_pen'] = 1.0
+    config['model_length_pen'] = 1.0
+    config['model_top_k'] = 50
+    config['model_top_p'] = 1.0
     return config
 
 model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
@@ -68,17 +74,16 @@ def main_window(config, ai, tokenizer):
         if event == '-GENERATE-':
             stripped_input = values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])
             prompt_tokens = tokenizer.encode(stripped_input)
-            maxlen = 128 + len(prompt_tokens)
+            maxlen = config['model_length'] + len(prompt_tokens)
             gen_text = ai.generate_one(prompt = stripped_input,
                                                            min_length = len(prompt_tokens)+1,
                                                            max_length = maxlen,
-                                                           temperature = 0.9,
-                                                           repetition_penalty = 1.0,
-                                                           length_penalty = 1.0,
-                                                           top_k = 50,
-                                                           top_p = 1.0
+                                                           temperature = config['model_temp'],
+                                                           repetition_penalty = config['model_rep_pen'],
+                                                           length_penalty = config['model_length_pen'],
+                                                           top_k = config['model_top_k'],
+                                                           top_p = config['model_top_p']
                                                            )
-            print(gen_text)
             gen_stripped_text = gen_text[len(stripped_input):]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
     window.close()
