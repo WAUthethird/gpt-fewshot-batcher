@@ -29,6 +29,7 @@ def main_window(config, ai, tokenizer):
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
                           [sg.Button('Display selected pair')], # This should generate a popup asking if they're sure - it'll wipe whatever they've already got in there. We don't need to show the popup if they don't have anything in the boxes, though.
+                          [sg.Button('Preview trimmed pair(s)')],
                           [sg.Button('Remove selected pair(s)')],
                           [sg.Button('Save fewshots to file')],
                           [sg.Button('Load fewshots from file')],
@@ -36,12 +37,11 @@ def main_window(config, ai, tokenizer):
 
     side_buttons_input = [[sg.Text('Current Pair Options')],
                           [sg.Button('Save pair to table')],
-                          [sg.Button('(Re)generate output')],
-                          [sg.Button('Preview trimmed pairs')],
+                          [sg.Button('(Re)generate output', key='-GENERATE-')],
                           [sg.Button('Clear input and output')]]
 
     main_layout = [[sg.Menu(menu_def)],
-                   [sg.Button('Change input prefix'), sg.Button('Change output prefix'), sg.Button('Export'), sg.Button('Settings')],
+                   [sg.Button('Change input prefix'), sg.Button('Change output prefix'), sg.Button('Export'), sg.Button('Settings'), sg.Button('Maybe have a text box where all the formatted text goes?')],
                    [sg.Table(values=data, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
@@ -52,9 +52,9 @@ def main_window(config, ai, tokenizer):
                                     expand_x=True,
                                     row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
                    [sg.Text('Input')],
-                   [sg.Multiline('', size=(100,10)), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')],
+                   [sg.Multiline('', size=(100,10), key='-INPUTBOX-'), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')],
                    [sg.Text('Output')],
-                   [sg.Multiline('', size=(100,10))]]
+                   [sg.Multiline('', size=(100,10), key='-OUTPUTBOX-')]]
 
     model_window_layout = [[sg.Text('Test Window')],
                            [sg.Button('OK')]]
@@ -65,7 +65,22 @@ def main_window(config, ai, tokenizer):
         event, values = window.read()
         if event == sg.WIN_CLOSED:
             break
-
+        if event == '-GENERATE-':
+            stripped_input = values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])
+            prompt_tokens = tokenizer.encode(stripped_input)
+            maxlen = 128 + len(prompt_tokens)
+            gen_text = ai.generate_one(prompt = stripped_input,
+                                                           min_length = len(prompt_tokens)+1,
+                                                           max_length = maxlen,
+                                                           temperature = 0.9,
+                                                           repetition_penalty = 1.0,
+                                                           length_penalty = 1.0,
+                                                           top_k = 50,
+                                                           top_p = 1.0
+                                                           )
+            print(gen_text)
+            gen_stripped_text = gen_text[len(stripped_input):]
+            window['-OUTPUTBOX-'].update(gen_stripped_text)
     window.close()
 
 # window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0,0))
