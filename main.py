@@ -22,6 +22,8 @@ def initialize_config():
     config['model_length_pen'] = 1.0
     config['model_top_k'] = 50
     config['model_top_p'] = 1.0
+    config['model_inputprefix'] = 'Input:'
+    config['model_outputprefix'] = 'Output:'
     return config
 
 model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
@@ -47,7 +49,7 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Clear input and output')]]
 
     main_layout = [[sg.Menu(menu_def)],
-                   [sg.Button('Change input prefix'), sg.Button('Change output prefix'), sg.Button('Export'), sg.Button('Settings'), sg.Button('Maybe have a text box where all the formatted text goes?')],
+                   [sg.Button('Change input prefix', key='-INPUTPREFIX-'), sg.Button('Change output prefix', key='-OUTPUTPREFIX-'), sg.Button('Export'), sg.Button('Settings'), sg.Button('Maybe have a text box where all the formatted text goes?')],
                    [sg.Table(values=data, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
@@ -86,6 +88,18 @@ def main_window(config, ai, tokenizer):
                                                            )
             gen_stripped_text = gen_text[len(stripped_input):]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
+        if event == '-INPUTPREFIX-':
+            temp_inputprefix = sg.popup_get_text('Change the input prefix:',
+                                                  title='Change input prefix',
+                                                  default_text=config['model_inputprefix'])
+            if temp_inputprefix is not None:
+                config['model_inputprefix'] = temp_inputprefix
+        if event == '-OUTPUTPREFIX-':
+            temp_outputprefix = sg.popup_get_text('Change the output prefix:',
+                                                  title='Change output prefix',
+                                                  default_text=config['model_outputprefix'])
+            if temp_outputprefix is not None:
+                config['model_inputprefix'] = temp_outputprefix
     window.close()
 
 # window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0,0))
