@@ -48,7 +48,7 @@ def main_window(config, ai, tokenizer):
     side_buttons_input = [[sg.Text('Current Pair Options')],
                           [sg.Button('Save pair to table', key='-SAVEPAIR-')],
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
-                          [sg.Button('Clear input and output')]]
+                          [sg.Button('Clear input and output', key='-CLEAR-')]]
 
     main_layout = [[sg.Menu(menu_def)],
                    [sg.Button('Change input prefix', key='-INPUTPREFIX-'), sg.Button('Change output prefix', key='-OUTPUTPREFIX-'), sg.Button('Export'), sg.Button('Settings'), sg.Button('Maybe have a text box where all the formatted text goes?')],
@@ -73,6 +73,7 @@ def main_window(config, ai, tokenizer):
     
     while True:
         event, values = window.read()
+        # make a new fewshot to tokenize everything in the table with a single function call, with correct newline parsing
         def tokenize_single_fewshot(tabledisplay, tokenizer):
             if len(tabledisplay) == 1:
                 assembled = f"\n\n{config['model_inputprefix']}\n\n{values['-INPUTBOX-']}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-']}"
@@ -111,6 +112,10 @@ def main_window(config, ai, tokenizer):
                 tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
                 print(tabledisplay)
                 window['-TABLE-'].update(values=tabledisplay)
+                window['-INPUTBOX-'].update('')
+                window['-OUTPUTBOX-'].update('')
+
+        # add logic to both of these that calls the mass tokenizer
         if event == '-INPUTPREFIX-':
             temp_inputprefix = sg.popup_get_text('Change the input prefix:',
                                                   title='Change input prefix',
@@ -123,6 +128,10 @@ def main_window(config, ai, tokenizer):
                                                   default_text=config['model_outputprefix'])
             if temp_outputprefix is not None:
                 config['model_inputprefix'] = temp_outputprefix
+        if event == '-CLEAR-':
+            if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
+                window['-INPUTBOX-'].update('')
+                window['-OUTPUTBOX-'].update('')
     window.close()
 
 # window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0,0))
