@@ -75,21 +75,20 @@ def main_window(config, ai, tokenizer):
         event, values = window.read()
         def tokenize_single_fewshot(tabledisplay, tokenizer):
             if len(tabledisplay) == 1:
-                assembled = f"\n\n{config['model_inputprefix']}\n\n{values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1])}"
+                assembled = f"\n\n{config['model_inputprefix']}\n\n{values['-INPUTBOX-']}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-']}"
             else:
-                assembled = f"{config['model_inputprefix']}\n\n{values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1])}"
+                assembled = f"{config['model_inputprefix']}\n\n{values['-INPUTBOX-']}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-']}"
             assembled_tokens = tokenizer.encode(assembled)
             return assembled_tokens
         if event == sg.WIN_CLOSED:
             break
         if event == '-GENERATE-':
-            if values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1]) == '':
+            if values['-INPUTBOX-'] == '':
                 sg.popup_ok('Input box must have text!', title='Error')
             else:
-                stripped_input = values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])
-                prompt_tokens = tokenizer.encode(stripped_input)
+                prompt_tokens = tokenizer.encode(values['-INPUTBOX-'])
                 maxlen = config['model_length'] + len(prompt_tokens)
-                gen_text = ai.generate_one(prompt = stripped_input,
+                gen_text = ai.generate_one(prompt = values['-INPUTBOX-'],
                                                                min_length = len(prompt_tokens)+1,
                                                                max_length = maxlen,
                                                                temperature = config['model_temp'],
@@ -98,15 +97,15 @@ def main_window(config, ai, tokenizer):
                                                                top_k = config['model_top_k'],
                                                                top_p = config['model_top_p']
                                                                )
-                gen_stripped_text = gen_text[len(stripped_input):]
+                gen_stripped_text = gen_text[len(values['-INPUTBOX-']):]
                 window['-OUTPUTBOX-'].update(gen_stripped_text)
         if event == '-SAVEPAIR-':
-            if values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1]) == '' or values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1]) == '':
+            if values['-INPUTBOX-'] == '' or values['-OUTPUTBOX-'] == '':
                 sg.popup_ok('Both text boxes must have text!', title='Error')
             else:
                 # activated should be moved to config to support modes
                 assembled_tokens = tokenize_single_fewshot(tabledisplay, tokenizer)
-                tempdict = {'input': values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1]), 'output': values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1]), 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
+                tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
                 tabledata.append(tempdict)
                 print(tabledata)
                 tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
