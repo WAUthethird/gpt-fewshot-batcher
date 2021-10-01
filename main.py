@@ -33,6 +33,8 @@ def main_window(config, ai, tokenizer):
             ['&Help', ['&About']]]
 
     data = [["INPUT", "OUTPUT", "TOKENCOUNT"], ["INPUT2", "OUTPUT2", "TOKENCOUNT2"], ["INPUT3", "OUTPUT3", "TOKENCOUNT3"], ["INPUT4", "OUTPUT4", "TOKENCOUNT4"], ["INPUT5", "OUTPUT5", "TOKENCOUNT5"], ["INPUT6", "OUTPUT6", "TOKENCOUNT6"], ["INPUT7", "OUTPUT7", "TOKENCOUNT7"], ["INPUT8", "OUTPUT8", "TOKENCOUNT8"], ["Line1\nLine2\nLine3", "Line1\nLine2\nLine3", "Line1\nLine2\nLine3"]]
+    tabledisplay = [['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', '']]
+    tabledata = []
     headings = ["Input", "Output", "Token Count"]
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
@@ -44,17 +46,17 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Clear fewshot table')]]
 
     side_buttons_input = [[sg.Text('Current Pair Options')],
-                          [sg.Button('Save pair to table')],
+                          [sg.Button('Save pair to table', key='-SAVEPAIR-')],
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
                           [sg.Button('Clear input and output')]]
 
     main_layout = [[sg.Menu(menu_def)],
                    [sg.Button('Change input prefix', key='-INPUTPREFIX-'), sg.Button('Change output prefix', key='-OUTPUTPREFIX-'), sg.Button('Export'), sg.Button('Settings'), sg.Button('Maybe have a text box where all the formatted text goes?')],
-                   [sg.Table(values=data, headings=headings, max_col_width=100,
+                   [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
                                     justification='center',
-                                    num_rows=5,
+                                    num_rows=min(len(tabledisplay), 1000),
                                     alternating_row_color='darkblue',
                                     key='-TABLE-',
                                     expand_x=True,
@@ -71,23 +73,45 @@ def main_window(config, ai, tokenizer):
     
     while True:
         event, values = window.read()
+        def tokenize_single_fewshot(tabledisplay, tokenizer):
+            if len(tabledisplay) == 1:
+                assembled = f"\n\n{config['model_inputprefix']}\n\n{values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1])}"
+            else:
+                assembled = f"{config['model_inputprefix']}\n\n{values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1])}"
+            assembled_tokens = tokenizer.encode(assembled)
+            return assembled_tokens
         if event == sg.WIN_CLOSED:
             break
         if event == '-GENERATE-':
-            stripped_input = values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])
-            prompt_tokens = tokenizer.encode(stripped_input)
-            maxlen = config['model_length'] + len(prompt_tokens)
-            gen_text = ai.generate_one(prompt = stripped_input,
-                                                           min_length = len(prompt_tokens)+1,
-                                                           max_length = maxlen,
-                                                           temperature = config['model_temp'],
-                                                           repetition_penalty = config['model_rep_pen'],
-                                                           length_penalty = config['model_length_pen'],
-                                                           top_k = config['model_top_k'],
-                                                           top_p = config['model_top_p']
-                                                           )
-            gen_stripped_text = gen_text[len(stripped_input):]
-            window['-OUTPUTBOX-'].update(gen_stripped_text)
+            if values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1]) == '':
+                sg.popup_ok('Input box must have text!', title='Error')
+            else:
+                stripped_input = values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1])
+                prompt_tokens = tokenizer.encode(stripped_input)
+                maxlen = config['model_length'] + len(prompt_tokens)
+                gen_text = ai.generate_one(prompt = stripped_input,
+                                                               min_length = len(prompt_tokens)+1,
+                                                               max_length = maxlen,
+                                                               temperature = config['model_temp'],
+                                                               repetition_penalty = config['model_rep_pen'],
+                                                               length_penalty = config['model_length_pen'],
+                                                               top_k = config['model_top_k'],
+                                                               top_p = config['model_top_p']
+                                                               )
+                gen_stripped_text = gen_text[len(stripped_input):]
+                window['-OUTPUTBOX-'].update(gen_stripped_text)
+        if event == '-SAVEPAIR-':
+            if values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1]) == '' or values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1]) == '':
+                sg.popup_ok('Both text boxes must have text!', title='Error')
+            else:
+                # activated should be moved to config to support modes
+                assembled_tokens = tokenize_single_fewshot(tabledisplay, tokenizer)
+                tempdict = {'input': values['-INPUTBOX-'].rstrip(values['-INPUTBOX-'][-1]), 'output': values['-OUTPUTBOX-'].rstrip(values['-OUTPUTBOX-'][-1]), 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
+                tabledata.append(tempdict)
+                print(tabledata)
+                tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
+                print(tabledisplay)
+                window['-TABLE-'].update(values=tabledisplay)
         if event == '-INPUTPREFIX-':
             temp_inputprefix = sg.popup_get_text('Change the input prefix:',
                                                   title='Change input prefix',
