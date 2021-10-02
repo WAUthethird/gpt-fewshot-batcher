@@ -1,5 +1,5 @@
 import PySimpleGUI as sg
-import time
+import platform
 
 from aitextgen import aitextgen
 from transformers import GPT2Tokenizer
@@ -48,7 +48,8 @@ def main_window(config, ai, tokenizer):
     side_buttons_input = [[sg.Text('Current Pair Options')],
                           [sg.Button('Save pair to table', key='-SAVEPAIR-')],
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
-                          [sg.Button('Clear input and output', key='-CLEAR-')]]
+                          [sg.Button('Clear input and output', key='-CLEAR-')],
+                          [sg.Button('Testing button!', key='-TESTING-')]]
 
     main_layout = [[sg.Menu(menu_def)],
                    [sg.Button('Change input prefix', key='-INPUTPREFIX-'), sg.Button('Change output prefix', key='-OUTPUTPREFIX-'), sg.Button('Export'), sg.Button('Settings'), sg.Button('Maybe have a text box where all the formatted text goes?')],
@@ -73,23 +74,30 @@ def main_window(config, ai, tokenizer):
     
     while True:
         event, values = window.read()
+        # Test Linux!!!!!
+        def newline_fix(try_strip):
+            if platform.system() == 'Darwin':
+                stripped_fix = try_strip.rstrip(try_strip[-1])
+                return stripped_fix
+            else:
+                return try_strip
         # make a new fewshot to tokenize everything in the table with a single function call, with correct newline parsing
         def tokenize_single_fewshot(tabledisplay, tokenizer):
             if len(tabledisplay) == 1:
-                assembled = f"\n\n{config['model_inputprefix']}\n\n{values['-INPUTBOX-']}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-']}"
+                assembled = f"\n\n{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}\n\n{newline_fix(values['-OUTPUTBOX-'])}"
             else:
-                assembled = f"{config['model_inputprefix']}\n\n{values['-INPUTBOX-']}\n\n{config['model_outputprefix']}\n\n{values['-OUTPUTBOX-']}"
+                assembled = f"{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}\n\n{newline_fix(values['-OUTPUTBOX-'])}"
             assembled_tokens = tokenizer.encode(assembled)
             return assembled_tokens
         if event == sg.WIN_CLOSED:
             break
         if event == '-GENERATE-':
-            if values['-INPUTBOX-'] == '':
+            if newline_fix(values['-INPUTBOX-']) == '':
                 sg.popup_ok('Input box must have text!', title='Error')
             else:
-                prompt_tokens = tokenizer.encode(values['-INPUTBOX-'])
+                prompt_tokens = tokenizer.encode(newline_fix(values['-INPUTBOX-']))
                 maxlen = config['model_length'] + len(prompt_tokens)
-                gen_text = ai.generate_one(prompt = values['-INPUTBOX-'],
+                gen_text = ai.generate_one(prompt = newline_fix(values['-INPUTBOX-']),
                                                                min_length = len(prompt_tokens)+1,
                                                                max_length = maxlen,
                                                                temperature = config['model_temp'],
@@ -98,15 +106,15 @@ def main_window(config, ai, tokenizer):
                                                                top_k = config['model_top_k'],
                                                                top_p = config['model_top_p']
                                                                )
-                gen_stripped_text = gen_text[len(values['-INPUTBOX-']):]
+                gen_stripped_text = gen_text[len(newline_fix(values['-INPUTBOX-'])):]
                 window['-OUTPUTBOX-'].update(gen_stripped_text)
         if event == '-SAVEPAIR-':
-            if values['-INPUTBOX-'] == '' or values['-OUTPUTBOX-'] == '':
+            if newline_fix(values['-INPUTBOX-']) == '' or newline_fix(values['-OUTPUTBOX-']) == '':
                 sg.popup_ok('Both text boxes must have text!', title='Error')
             else:
                 # activated should be moved to config to support modes
                 assembled_tokens = tokenize_single_fewshot(tabledisplay, tokenizer)
-                tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
+                tempdict = {'input': newline_fix(values['-INPUTBOX-']), 'output': newline_fix(values['-OUTPUTBOX-']), 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
                 tabledata.append(tempdict)
                 print(tabledata)
                 tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
@@ -132,6 +140,8 @@ def main_window(config, ai, tokenizer):
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
                 window['-OUTPUTBOX-'].update('')
+        if event == '-TESTING-':
+            print('I don\'t do anything right now!')
     window.close()
 
 # window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0,0))
