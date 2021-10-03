@@ -82,13 +82,28 @@ def main_window(config, ai, tokenizer):
             else:
                 return try_strip
         # make a new fewshot to tokenize everything in the table with a single function call, with correct newline parsing
-        def tokenize_single_fewshot(tabledisplay, tokenizer):
-            if len(tabledisplay) == 1:
-                assembled = f"\n\n{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}\n\n{newline_fix(values['-OUTPUTBOX-'])}"
-            else:
+        def tokenize_single_fewshot(tokenizer):
+            if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
                 assembled = f"{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}\n\n{newline_fix(values['-OUTPUTBOX-'])}"
+            else:
+                assembled = f"\n\n{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}\n\n{newline_fix(values['-OUTPUTBOX-'])}"
             assembled_tokens = tokenizer.encode(assembled)
             return assembled_tokens
+        def tokenize_all_fewshots(tokenizer):
+            for index, value in enumerate(tabledata):
+                if index == 0:
+                    assembled = f"{config['model_inputprefix']}\n\n{value['input']}\n\n{config['model_outputprefix']}\n\n{value['output']}"
+                else:
+                    assembled = f"\n\n{config['model_inputprefix']}\n\n{value['input']}\n\n{config['model_outputprefix']}\n\n{value['output']}"
+                assembled_tokens = tokenizer.encode(assembled)
+                value['tokens'] = len(assembled_tokens)
+        # must do tabledisplay = update_table() in all uses
+        def update_table():
+            tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
+            window['-TABLE-'].update(values=tabledisplay)
+            window['-INPUTBOX-'].update('')
+            window['-OUTPUTBOX-'].update('')
+            return tabledisplay
         if event == sg.WIN_CLOSED:
             break
         if event == '-GENERATE-':
@@ -113,15 +128,10 @@ def main_window(config, ai, tokenizer):
                 sg.popup_ok('Both text boxes must have text!', title='Error')
             else:
                 # activated should be moved to config to support modes
-                assembled_tokens = tokenize_single_fewshot(tabledisplay, tokenizer)
+                assembled_tokens = tokenize_single_fewshot(tokenizer)
                 tempdict = {'input': newline_fix(values['-INPUTBOX-']), 'output': newline_fix(values['-OUTPUTBOX-']), 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
                 tabledata.append(tempdict)
-                print(tabledata)
-                tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
-                print(tabledisplay)
-                window['-TABLE-'].update(values=tabledisplay)
-                window['-INPUTBOX-'].update('')
-                window['-OUTPUTBOX-'].update('')
+                tabledisplay = update_table()
 
         # add logic to both of these that calls the mass tokenizer
         if event == '-INPUTPREFIX-':
@@ -130,12 +140,16 @@ def main_window(config, ai, tokenizer):
                                                   default_text=config['model_inputprefix'])
             if temp_inputprefix is not None:
                 config['model_inputprefix'] = temp_inputprefix
+                tokenize_all_fewshots(tokenizer)
+                tabledisplay = update_table()
         if event == '-OUTPUTPREFIX-':
             temp_outputprefix = sg.popup_get_text('Change the output prefix:',
                                                   title='Change output prefix',
                                                   default_text=config['model_outputprefix'])
             if temp_outputprefix is not None:
                 config['model_inputprefix'] = temp_outputprefix
+                tokenize_all_fewshots(tokenizer)
+                tabledisplay = update_table()
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
