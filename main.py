@@ -163,16 +163,18 @@ def main_window(config, ai, tokenizer):
                                                   default_text=config['model_inputprefix'])
             if temp_inputprefix is not None:
                 config['model_inputprefix'] = temp_inputprefix
-                tokenize_all_fewshots()
-                tabledisplay = update_table()
+                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0:
+                    tokenize_all_fewshots()
+                    tabledisplay = update_table()
         if event == '-OUTPUTPREFIX-':
             temp_outputprefix = sg.popup_get_text('Change the output prefix:',
                                                   title='Change output prefix',
                                                   default_text=config['model_outputprefix'])
             if temp_outputprefix is not None:
                 config['model_outputprefix'] = temp_outputprefix
-                tokenize_all_fewshots()
-                tabledisplay = update_table()
+                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0:
+                    tokenize_all_fewshots()
+                    tabledisplay = update_table()
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
