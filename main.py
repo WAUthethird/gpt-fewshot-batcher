@@ -107,7 +107,10 @@ def main_window(config, ai, tokenizer):
                                        top_k = config['model_top_k'],
                                        top_p = config['model_top_p']
                                        )
-            gen_stripped_text = gen_text[len(prompt_temp)+2:].split(f"\n\n{config['model_inputprefix']}", 1)[0]
+            try:
+                gen_stripped_text = gen_text[len(prompt_temp)+2:].split(f"\n\n{config['model_inputprefix']}", 1)[0]
+            except:
+                gen_stripped_text = gen_text[len(prompt_temp)+2:]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
         def tokenize_single_fewshot():
             if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
