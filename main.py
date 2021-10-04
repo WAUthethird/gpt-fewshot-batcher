@@ -32,7 +32,6 @@ def main_window(config, ai, tokenizer):
     menu_def = [['&File', ['COULD DO MORE STUFF HERE', '&Settings', 'E&xit']],
             ['&Help', ['&About']]]
 
-    data = [["INPUT", "OUTPUT", "TOKENCOUNT"], ["INPUT2", "OUTPUT2", "TOKENCOUNT2"], ["INPUT3", "OUTPUT3", "TOKENCOUNT3"], ["INPUT4", "OUTPUT4", "TOKENCOUNT4"], ["INPUT5", "OUTPUT5", "TOKENCOUNT5"], ["INPUT6", "OUTPUT6", "TOKENCOUNT6"], ["INPUT7", "OUTPUT7", "TOKENCOUNT7"], ["INPUT8", "OUTPUT8", "TOKENCOUNT8"], ["Line1\nLine2\nLine3", "Line1\nLine2\nLine3", "Line1\nLine2\nLine3"]]
     tabledisplay = [['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', '']]
     tabledata = []
     assembled_context = ''
@@ -67,9 +66,6 @@ def main_window(config, ai, tokenizer):
                    [sg.Multiline('', size=(100,10), key='-INPUTBOX-'), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')],
                    [sg.Text('Output')],
                    [sg.Multiline('', size=(100,10), key='-OUTPUTBOX-')]]
-
-    model_window_layout = [[sg.Text('Test Window')],
-                           [sg.Button('OK')]]
 
     window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0,0))
     
@@ -182,12 +178,6 @@ def main_window(config, ai, tokenizer):
         if event == '-TESTING-':
             print('I don\'t do anything right now!')
     window.close()
-
-# window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0,0))
-
-""" event, values = window.read()
-event, values = model_window.read() """
-# window.close()
 
 def first_boot(config):
     if torch.cuda.is_available():
