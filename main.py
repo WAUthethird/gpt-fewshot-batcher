@@ -281,10 +281,14 @@ def first_boot(config):
     return config, ai, tokenizer
 
 def main():
+    # Get No Model mode working again
     if not sg.user_settings_file_exists(filename='config.ini', path='.'):
+        # Wonder if it'd be possible to nest all of these?
         config = initialize_config()
         config, ai, tokenizer = first_boot(config)
+        # Solve the return issue for No Model mode by separating out the model initialization into a separate function that is also called upon on boots that are not first_boot
         main_window(config, ai, tokenizer)
+        main_window(config, ai, tokenizer = first_boot(config = initialize_config))
     else:
         config = sg.UserSettings(filename='config.ini', path='.')
         if config['model_type'] == 'tf_gpt2':
