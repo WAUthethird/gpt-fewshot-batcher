@@ -132,22 +132,28 @@ def main_window(config, ai, tokenizer):
         if event == sg.WIN_CLOSED:
             break
         if event == '-GENERATE-':
-            if newline_fix(values['-INPUTBOX-']) == '':
-                sg.popup_ok('Input box must have text!', title='Error')
+            if config['nomodel'] == True:
+                sg.popup_ok('You must have a model loaded to generate text!', title='Error')
             else:
-                if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
-                    if sg.popup_yes_no('Are you sure you\'d like to generate text with an empty context?', title='Confirm generation') == 'Yes':
-                        assemble = False
-                        generate_text(assemble, assembled_context)
+                if newline_fix(values['-INPUTBOX-']) == '':
+                    sg.popup_ok('Input box must have text!', title='Error')
                 else:
-                    assemble = True
-                    generate_text(assemble, assembled_context)
+                    if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
+                        if sg.popup_yes_no('Are you sure you\'d like to generate text with an empty context?', title='Confirm generation') == 'Yes':
+                            assemble = False
+                            generate_text(assemble, assembled_context)
+                    else:
+                        assemble = True
+                        generate_text(assemble, assembled_context)
         if event == '-SAVEPAIR-':
             if newline_fix(values['-INPUTBOX-']) == '' or newline_fix(values['-OUTPUTBOX-']) == '':
                 sg.popup_ok('Both text boxes must have text!', title='Error')
             else:
                 # activated should be moved to config to support modes
-                assembled_tokens = tokenize_single_fewshot()
+                if not config['nomodel'] == True:
+                    assembled_tokens = tokenize_single_fewshot()
+                else:
+                    assembled_tokens = ''
                 tempdict = {'input': newline_fix(values['-INPUTBOX-']), 'output': newline_fix(values['-OUTPUTBOX-']), 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
                 tabledata.append(tempdict)
                 tabledisplay = update_table()
@@ -159,7 +165,7 @@ def main_window(config, ai, tokenizer):
                                                   default_text=config['model_inputprefix'])
             if temp_inputprefix is not None:
                 config['model_inputprefix'] = temp_inputprefix
-                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0:
+                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
                     tokenize_all_fewshots()
                     tabledisplay = update_table()
         if event == '-OUTPUTPREFIX-':
@@ -168,7 +174,7 @@ def main_window(config, ai, tokenizer):
                                                   default_text=config['model_outputprefix'])
             if temp_outputprefix is not None:
                 config['model_outputprefix'] = temp_outputprefix
-                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0:
+                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
                     tokenize_all_fewshots()
                     tabledisplay = update_table()
         if event == '-CLEAR-':
@@ -178,6 +184,15 @@ def main_window(config, ai, tokenizer):
         if event == '-TESTING-':
             print('I don\'t do anything right now!')
     window.close()
+
+def initialize_ai(config):
+    if config['model_type'] == 'tf_gpt2':
+        ai = aitextgen(tf_gpt2=config['defaultmodel'], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/gpt2-{config['defaultmodel']}")
+        tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    else:
+        ai = aitextgen(model=config['defaultmodel'], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/{config['defaultmodel']}")
+        tokenizer = GPT2Tokenizer.from_pretrained(config['defaultmodel'])
+    return ai, tokenizer
 
 def first_boot(config):
     if torch.cuda.is_available():
@@ -263,12 +278,8 @@ def first_boot(config):
         if event == '-SELECT-' and not values['-MODEL-'] == 'No model':
             if sg.popup_yes_no(f"Are you sure you want to download the {values['-MODEL-']} model?", title="Confirm Model Selection", keep_on_top=True, modal=True) == 'Yes':
                 if model_info['model_type'][values['-MODEL-']] == 'tf_gpt2':
-                    ai = aitextgen(tf_gpt2=model_info['model_type']['tfgpt2'][values['-MODEL-']], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/gpt2-{model_info['model_type']['tfgpt2'][values['-MODEL-']]}")
-                    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
                     config['defaultmodel'] = model_info['model_type']['tfgpt2'][values['-MODEL-']]
                 else:
-                    ai = aitextgen(model=model_info['model_type']['nongpt2'][values['-MODEL-']], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/{model_info['model_type']['nongpt2'][values['-MODEL-']]}")
-                    tokenizer = GPT2Tokenizer.from_pretrained(model_info['model_type']['nongpt2'][values['-MODEL-']])
                     config['defaultmodel'] = model_info['model_type']['nongpt2'][values['-MODEL-']]
                 config['nomodel'] = False
                 config['model_type'] = model_info['model_type'][values['-MODEL-']]
@@ -278,26 +289,22 @@ def first_boot(config):
                 config['nomodel'] = True
                 break
     window.close()
-    return config, ai, tokenizer
+    return config
 
 def main():
-    # Get No Model mode working again
     if not sg.user_settings_file_exists(filename='config.ini', path='.'):
-        # Wonder if it'd be possible to nest all of these?
         config = initialize_config()
-        config, ai, tokenizer = first_boot(config)
-        # Solve the return issue for No Model mode by separating out the model initialization into a separate function that is also called upon on boots that are not first_boot
-        main_window(config, ai, tokenizer)
-        main_window(config, ai, tokenizer = first_boot(config = initialize_config))
+        config = first_boot(config)
     else:
         config = sg.UserSettings(filename='config.ini', path='.')
-        if config['model_type'] == 'tf_gpt2':
-            ai = aitextgen(tf_gpt2=config['defaultmodel'], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/gpt2-{config['defaultmodel']}")
-            tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-        else:
-            ai = aitextgen(model=config['defaultmodel'], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/{config['defaultmodel']}")
-            tokenizer = GPT2Tokenizer.from_pretrained(config['defaultmodel'])
-        main_window(config, ai, tokenizer)
+
+    if config['nomodel'] == True:
+        ai = None
+        tokenizer = None
+    else:
+        ai, tokenizer = initialize_ai(config)
+
+    main_window(config, ai, tokenizer)
 
 if __name__ == "__main__":
     main()
