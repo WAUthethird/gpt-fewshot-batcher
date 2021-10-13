@@ -22,8 +22,14 @@ def initialize_config():
     config['model_length_pen'] = 1.0
     config['model_top_k'] = 50
     config['model_top_p'] = 1.0
+    config['model_fewshotprefix'] = ''
+    config['model_after_fewshotprefix'] = ''
     config['model_inputprefix'] = 'Input:'
     config['model_outputprefix'] = 'Output:'
+    config['model_after_inputprefix'] = '\n\n'
+    config['model_after_inputtext'] = '\n\n'
+    config['model_after_outputprefix'] = '\n\n'
+    config['model_after_outputtext'] = '\n\n'
     return config
 
 model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
@@ -36,6 +42,36 @@ def main_window(config, ai, tokenizer):
     tabledata = []
     assembled_context = ''
     headings = ["Input", "Output", "Token Count"]
+
+    text_padding = ((0,0), (16, 15))
+
+    settings_text = [[sg.Text('Length:', pad=text_padding)],
+                     [sg.Text('Temperature:', pad=text_padding)],
+                     [sg.Text('Repetition Penalty:', pad=text_padding)],
+                     [sg.Text('Length Penalty:', pad=text_padding)],
+                     [sg.Text('Top K:', pad=text_padding)],
+                     [sg.Text('Top P:', pad=text_padding)]]
+
+    settings_sliders = [[sg.Slider(range=(20, 500), default_value=config['model_length'], size=(70,25), orientation='horizontal')],
+                        [sg.Slider(range=(0.1, 3.0), resolution=0.1, default_value=config['model_temp'], size=(70,25), orientation='horizontal')],
+                        [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_rep_pen'], size=(70,25), orientation='horizontal')],
+                        [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_length_pen'], size=(70,25), orientation='horizontal')],
+                        [sg.Slider(range=(1, 100), default_value=config['model_top_k'], size=(70,25), orientation='horizontal')],
+                        [sg.Slider(range=(0.1, 1.0), resolution=0.1, default_value=config['model_top_p'], size=(70,25), orientation='horizontal')]]
+
+    settings_window = [[sg.Col([[sg.Text('Settings')]], justification='center')],
+                       [sg.Col(settings_text, element_justification='left'), sg.Col(settings_sliders, element_justification='right')],
+                       [sg.Text('_'*105)],
+                       [sg.Text('Both fewshot prefix fields may be left empty if desired.')],
+                       [sg.Text('Fewshot prefix:'), sg.InputText(default_text=config['model_fewshotprefix'], size=25, pad=((27,0), (0,0)))],
+                       [sg.Col([[sg.Text('After fewshot prefix:'), sg.InputText(default_text=config['model_after_fewshotprefix'], size=25)]], pad=((0,0), (0,10)))],
+                       [sg.Text('Input prefix:'), sg.InputText(default_text=config['model_inputprefix'], size=25, pad=((43,0), (0,0)))],
+                       [sg.Text('Output prefix:'), sg.InputText(default_text=config['model_outputprefix'], size=25, pad=((35,0), (0,0)))],
+                       [sg.Text('After input prefix:'), sg.InputText(default_text=config['model_after_inputprefix'], size=25, pad=((18,0), (0,0)))],
+                       [sg.Text('After input text:'), sg.InputText(default_text=config['model_after_inputtext'], size=25, pad=((26,0), (0,0)))],
+                       [sg.Text('After output prefix:'), sg.InputText(default_text=config['model_after_outputprefix'], size=25, pad=((12,0), (0,0)))],
+                       [sg.Text('After output text:'), sg.InputText(default_text=config['model_after_outputtext'], size=25, pad=((20,0), (0,0)))],
+                       [sg.Col([[sg.Button('Reset to defaults'), sg.Button('Save'), sg.Button('Exit')]], justification='center')]]
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
                           [sg.Button('Display selected pair')], # This should generate a popup asking if they're sure - it'll wipe whatever they've already got in there. We don't need to show the popup if they don't have anything in the boxes, though.
@@ -52,7 +88,7 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Testing button!', key='-TESTING-')]]
 
     main_layout = [[sg.Menu(menu_def)],
-                   [sg.Button('Change input prefix', key='-INPUTPREFIX-'), sg.Button('Change output prefix', key='-OUTPUTPREFIX-'), sg.Button('Export'), sg.Button('Settings'), sg.Button('Maybe have a text box where all the formatted text goes?')],
+                   [sg.Button('Change input prefix', key='-INPUTPREFIX-'), sg.Button('Change output prefix', key='-OUTPUTPREFIX-'), sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-'), sg.Button('Maybe have a text box where all the formatted text goes?')],
                    [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
@@ -131,6 +167,13 @@ def main_window(config, ai, tokenizer):
 
         if event == sg.WIN_CLOSED:
             break
+        if event == '-SETTINGS-':
+            settings = sg.Window('Settings', settings_window, location=(0,0), modal=True)
+            while True:
+                event, values = settings.read()
+                if event == sg.WIN_CLOSED:
+                    break
+            settings.close()
         if event == '-GENERATE-':
             if config['nomodel'] == True:
                 sg.popup_ok('You must have a model loaded to generate text!', title='Error')
@@ -297,13 +340,11 @@ def main():
         config = first_boot(config)
     else:
         config = sg.UserSettings(filename='config.ini', path='.')
-
     if config['nomodel'] == True:
         ai = None
         tokenizer = None
     else:
         ai, tokenizer = initialize_ai(config)
-
     main_window(config, ai, tokenizer)
 
 if __name__ == "__main__":
