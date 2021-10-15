@@ -30,6 +30,7 @@ def initialize_config():
     config['model_after_inputtext'] = '\n\n'
     config['model_after_outputprefix'] = '\n\n'
     config['model_after_outputtext'] = '\n\n'
+    config['model_stopsequence'] = '\n\nInput:'
     return config
 
 model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
@@ -43,35 +44,39 @@ def main_window(config, ai, tokenizer):
     assembled_context = ''
     headings = ["Input", "Output", "Token Count"]
 
-    text_padding = ((0,0), (16, 15))
+    def settings_window():
+        text_padding = ((0,0), (16, 15))
+        settings_text = [[sg.Text('Length:', pad=text_padding)],
+                         [sg.Text('Temperature:', pad=text_padding)],
+                         [sg.Text('Repetition Penalty:', pad=text_padding)],
+                         [sg.Text('Length Penalty:', pad=text_padding)],
+                         [sg.Text('Top K:', pad=text_padding)],
+                         [sg.Text('Top P:', pad=text_padding)]]
 
-    settings_text = [[sg.Text('Length:', pad=text_padding)],
-                     [sg.Text('Temperature:', pad=text_padding)],
-                     [sg.Text('Repetition Penalty:', pad=text_padding)],
-                     [sg.Text('Length Penalty:', pad=text_padding)],
-                     [sg.Text('Top K:', pad=text_padding)],
-                     [sg.Text('Top P:', pad=text_padding)]]
+        settings_sliders = [[sg.Slider(range=(20, 500), default_value=config['model_length'], key='-MODELLENGTH-', size=(70,25), orientation='horizontal')],
+                            [sg.Slider(range=(0.1, 3.0), resolution=0.1, default_value=config['model_temp'], key='-MODELTEMP-', size=(70,25), orientation='horizontal')],
+                            [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_rep_pen'], key='-MODELREP-PEN-', size=(70,25), orientation='horizontal')],
+                            [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_length_pen'], key='-MODELLENGTH-PEN-', size=(70,25), orientation='horizontal')],
+                            [sg.Slider(range=(1, 100), default_value=config['model_top_k'], key='-MODELTOP-K-', size=(70,25), orientation='horizontal')],
+                            [sg.Slider(range=(0.1, 1.0), resolution=0.1, default_value=config['model_top_p'], key='-MODELTOP-P-', size=(70,25), orientation='horizontal')]]
+        # ADD MODEL SELECTION
+        # DO IT
+        settings_window = [[sg.Col([[sg.Text('Settings')]], justification='center')],
+                           [sg.Col(settings_text, element_justification='left'), sg.Col(settings_sliders, element_justification='right')],
+                           [sg.Text('_'*105)],
+                           [sg.Text('Both fewshot prefix fields may be left empty if desired.')],
+                           [sg.Text('Fewshot prefix:'), sg.InputText(default_text=config['model_fewshotprefix'].replace('\n','\\n'), key='-FEWSHOTPREFIX-', size=25, pad=((27,0), (0,0)))],
+                           [sg.Col([[sg.Text('After fewshot prefix:'), sg.InputText(default_text=config['model_after_fewshotprefix'].replace('\n','\\n'), key='-AFTER-FEWSHOTPREFIX-', size=25)]], pad=((0,0), (0,10)))],
+                           [sg.Text('Input prefix:'), sg.InputText(default_text=config['model_inputprefix'].replace('\n','\\n'), key='-INPUTPREFIX-', size=25, pad=((43,0), (0,0)))],
+                           [sg.Text('Output prefix:'), sg.InputText(default_text=config['model_outputprefix'].replace('\n','\\n'), key='-OUTPUTPREFIX-', size=25, pad=((35,0), (0,0)))],
+                           [sg.Text('After input prefix:'), sg.InputText(default_text=config['model_after_inputprefix'].replace('\n','\\n'), key='-AFTER-INPUTPREFIX-', size=25, pad=((18,0), (0,0)))],
+                           [sg.Text('After input text:'), sg.InputText(default_text=config['model_after_inputtext'].replace('\n','\\n'), key='-AFTER-INPUTTEXT-', size=25, pad=((26,0), (0,0)))],
+                           [sg.Text('After output prefix:'), sg.InputText(default_text=config['model_after_outputprefix'].replace('\n','\\n'), key='-AFTER-OUTPUTPREFIX-', size=25, pad=((12,0), (0,0)))],
+                           [sg.Col([[sg.Text('After output text:'), sg.InputText(default_text=config['model_after_outputtext'].replace('\n','\\n'), key='-AFTER-OUTPUTTEXT-', size=25, pad=((20,0), (0,0)))]], pad=((0,0), (0,10)))],
+                           [sg.Text('Stop sequence:'), sg.InputText(default_text=config['model_stopsequence'].replace('\n','\\n'), key='-STOPSEQUENCE-', size=25, pad=((25,0), (0,0)))],
+                           [sg.Col([[sg.Button('Reset to defaults', key='-RESETDEFAULTS-'), sg.Button('Save', key='-SAVESETTINGS-'), sg.Button('Exit', key='-EXITSETTINGS-')]], justification='center')]]
 
-    settings_sliders = [[sg.Slider(range=(20, 500), default_value=config['model_length'], size=(70,25), orientation='horizontal')],
-                        [sg.Slider(range=(0.1, 3.0), resolution=0.1, default_value=config['model_temp'], size=(70,25), orientation='horizontal')],
-                        [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_rep_pen'], size=(70,25), orientation='horizontal')],
-                        [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_length_pen'], size=(70,25), orientation='horizontal')],
-                        [sg.Slider(range=(1, 100), default_value=config['model_top_k'], size=(70,25), orientation='horizontal')],
-                        [sg.Slider(range=(0.1, 1.0), resolution=0.1, default_value=config['model_top_p'], size=(70,25), orientation='horizontal')]]
-
-    settings_window = [[sg.Col([[sg.Text('Settings')]], justification='center')],
-                       [sg.Col(settings_text, element_justification='left'), sg.Col(settings_sliders, element_justification='right')],
-                       [sg.Text('_'*105)],
-                       [sg.Text('Both fewshot prefix fields may be left empty if desired.')],
-                       [sg.Text('Fewshot prefix:'), sg.InputText(default_text=config['model_fewshotprefix'], size=25, pad=((27,0), (0,0)))],
-                       [sg.Col([[sg.Text('After fewshot prefix:'), sg.InputText(default_text=config['model_after_fewshotprefix'], size=25)]], pad=((0,0), (0,10)))],
-                       [sg.Text('Input prefix:'), sg.InputText(default_text=config['model_inputprefix'], size=25, pad=((43,0), (0,0)))],
-                       [sg.Text('Output prefix:'), sg.InputText(default_text=config['model_outputprefix'], size=25, pad=((35,0), (0,0)))],
-                       [sg.Text('After input prefix:'), sg.InputText(default_text=config['model_after_inputprefix'], size=25, pad=((18,0), (0,0)))],
-                       [sg.Text('After input text:'), sg.InputText(default_text=config['model_after_inputtext'], size=25, pad=((26,0), (0,0)))],
-                       [sg.Text('After output prefix:'), sg.InputText(default_text=config['model_after_outputprefix'], size=25, pad=((12,0), (0,0)))],
-                       [sg.Text('After output text:'), sg.InputText(default_text=config['model_after_outputtext'], size=25, pad=((20,0), (0,0)))],
-                       [sg.Col([[sg.Button('Reset to defaults'), sg.Button('Save'), sg.Button('Exit')]], justification='center')]]
+        return sg.Window('Settings', settings_window, location=(0,0), modal=True)
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
                           [sg.Button('Display selected pair')], # This should generate a popup asking if they're sure - it'll wipe whatever they've already got in there. We don't need to show the popup if they don't have anything in the boxes, though.
@@ -107,27 +112,20 @@ def main_window(config, ai, tokenizer):
     
     while True:
         event, values = window.read()
-        # Test Linux!!!!!
-        def newline_fix(try_strip):
-            if platform.system() == 'Darwin':
-                stripped_fix = try_strip.rstrip(try_strip[-1])
-                return stripped_fix
-            else:
-                return try_strip
         def assemble_context(assembled_context):
             for index, value in enumerate(tabledata):
                 if index == 0:
-                    assembled = f"{config['model_inputprefix']}\n\n{value['input']}\n\n{config['model_outputprefix']}\n\n{value['output']}"
+                    assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 else:
-                    assembled = f"\n\n{config['model_inputprefix']}\n\n{value['input']}\n\n{config['model_outputprefix']}\n\n{value['output']}"
+                    assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 assembled_context = f"{assembled_context}{assembled}"
             return assembled_context
         def generate_text(assemble, assembled_context):
             if assemble:
                 assembled_context = assemble_context(assembled_context)
-                prompt_temp = f"{assembled_context}\n\n{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}"
+                prompt_temp = f"{assembled_context}{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
             else:
-                prompt_temp = f"{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}"
+                prompt_temp = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
             prompt_tokens = tokenizer.encode(prompt_temp)
             maxlen = config['model_length'] + len(prompt_tokens)
             gen_text = ai.generate_one(prompt = prompt_temp,
@@ -136,27 +134,26 @@ def main_window(config, ai, tokenizer):
                                        temperature = config['model_temp'],
                                        repetition_penalty = config['model_rep_pen'],
                                        length_penalty = config['model_length_pen'],
-                                       top_k = config['model_top_k'],
-                                       top_p = config['model_top_p']
-                                       )
+                                       top_k = int(config['model_top_k']),
+                                       top_p = config['model_top_p'])
             try:
-                gen_stripped_text = gen_text[len(prompt_temp)+2:].split(f"\n\n{config['model_inputprefix']}", 1)[0]
+                gen_stripped_text = gen_text[len(prompt_temp)+len(config['model_stopsequence']):].split(f"{config['model_stopsequence']}", 1)[0]
             except:
                 gen_stripped_text = gen_text[len(prompt_temp)+2:]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
         def tokenize_single_fewshot():
             if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
-                assembled = f"{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}\n\n{newline_fix(values['-OUTPUTBOX-'])}"
+                assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
             else:
-                assembled = f"\n\n{config['model_inputprefix']}\n\n{newline_fix(values['-INPUTBOX-'])}\n\n{config['model_outputprefix']}\n\n{newline_fix(values['-OUTPUTBOX-'])}"
+                assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
             assembled_tokens = tokenizer.encode(assembled)
             return assembled_tokens
         def tokenize_all_fewshots():
             for index, value in enumerate(tabledata):
                 if index == 0:
-                    assembled = f"{config['model_inputprefix']}\n\n{value['input']}\n\n{config['model_outputprefix']}\n\n{value['output']}"
+                    assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 else:
-                    assembled = f"\n\n{config['model_inputprefix']}\n\n{value['input']}\n\n{config['model_outputprefix']}\n\n{value['output']}"
+                    assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 assembled_tokens = tokenizer.encode(assembled)
                 value['tokens'] = len(assembled_tokens)
         # must do tabledisplay = update_table() in all uses
@@ -164,21 +161,77 @@ def main_window(config, ai, tokenizer):
             tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
             window['-TABLE-'].update(values=tabledisplay)
             return tabledisplay
-
         if event == sg.WIN_CLOSED:
             break
         if event == '-SETTINGS-':
-            settings = sg.Window('Settings', settings_window, location=(0,0), modal=True)
+            settings = settings_window()
             while True:
                 event, values = settings.read()
                 if event == sg.WIN_CLOSED:
+                    break
+                if event == '-SAVESETTINGS-':
+                    config['model_length'] = values['-MODELLENGTH-']
+                    config['model_temp'] = values['-MODELTEMP-']
+                    config['model_rep_pen'] = values['-MODELREP-PEN-']
+                    config['model_length_pen'] = values['-MODELLENGTH-PEN-']
+                    config['model_top_k'] = values['-MODELTOP-K-']
+                    config['model_top_p'] = values['-MODELTOP-P-']
+                    config['model_fewshotprefix'] = values['-FEWSHOTPREFIX-'].replace('\\n','\n')
+                    config['model_after_fewshotprefix'] = values['-AFTER-FEWSHOTPREFIX-'].replace('\\n','\n')
+                    config['model_inputprefix'] = values['-INPUTPREFIX-'].replace('\\n','\n')
+                    config['model_outputprefix'] = values['-OUTPUTPREFIX-'].replace('\\n','\n')
+                    config['model_after_inputprefix'] = values['-AFTER-INPUTPREFIX-'].replace('\\n','\n')
+                    config['model_after_inputtext'] = values['-AFTER-INPUTTEXT-'].replace('\\n','\n')
+                    config['model_after_outputprefix'] = values['-AFTER-OUTPUTPREFIX-'].replace('\\n','\n')
+                    config['model_after_outputtext'] = values['-AFTER-OUTPUTTEXT-'].replace('\\n','\n')
+                    config['model_stopsequence'] = values['-STOPSEQUENCE-'].replace('\\n','\n')
+                    if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
+                        tokenize_all_fewshots()
+                        tabledisplay = update_table()
+                if event == '-RESETDEFAULTS-':
+                    if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top = True, modal=True) == 'Yes':
+                        #Replace this with a call to initialize_config() once model switching is up and running
+                        config['model_length'] = 128
+                        config['model_temp'] = 0.9
+                        config['model_rep_pen'] = 1.0
+                        config['model_length_pen'] = 1.0
+                        config['model_top_k'] = 50
+                        config['model_top_p'] = 1.0
+                        config['model_fewshotprefix'] = ''
+                        config['model_after_fewshotprefix'] = ''
+                        config['model_inputprefix'] = 'Input:'
+                        config['model_outputprefix'] = 'Output:'
+                        config['model_after_inputprefix'] = '\n\n'
+                        config['model_after_inputtext'] = '\n\n'
+                        config['model_after_outputprefix'] = '\n\n'
+                        config['model_after_outputtext'] = '\n\n'
+                        config['model_stopsequence'] = '\n\nInput:'
+                        settings['-MODELLENGTH-'].update(config['model_length'])
+                        settings['-MODELTEMP-'].update(config['model_temp'])
+                        settings['-MODELREP-PEN-'].update(config['model_rep_pen'])
+                        settings['-MODELLENGTH-PEN-'].update(config['model_length_pen'])
+                        settings['-MODELTOP-K-'].update(config['model_top_k'])
+                        settings['-MODELTOP-P-'].update(config['model_top_p'])
+                        settings['-FEWSHOTPREFIX-'].update(config['model_fewshotprefix'])
+                        settings['-AFTER-FEWSHOTPREFIX-'].update(config['model_after_fewshotprefix'])
+                        settings['-INPUTPREFIX-'].update(config['model_inputprefix'])
+                        settings['-OUTPUTPREFIX-'].update(config['model_outputprefix'])
+                        settings['-AFTER-INPUTPREFIX-'].update(config['model_after_inputprefix'].replace('\n','\\n'))
+                        settings['-AFTER-INPUTTEXT-'].update(config['model_after_inputtext'].replace('\n','\\n'))
+                        settings['-AFTER-OUTPUTPREFIX-'].update(config['model_after_outputprefix'].replace('\n','\\n'))
+                        settings['-AFTER-OUTPUTTEXT-'].update(config['model_after_outputtext'].replace('\n','\\n'))
+                        settings['-STOPSEQUENCE-'].update(config['model_stopsequence'].replace('\n','\\n'))
+                        if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
+                            tokenize_all_fewshots()
+                            tabledisplay = update_table()
+                if event == '-EXITSETTINGS-':
                     break
             settings.close()
         if event == '-GENERATE-':
             if config['nomodel'] == True:
                 sg.popup_ok('You must have a model loaded to generate text!', title='Error')
             else:
-                if newline_fix(values['-INPUTBOX-']) == '':
+                if values['-INPUTBOX-'] == '':
                     sg.popup_ok('Input box must have text!', title='Error')
                 else:
                     if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
@@ -189,7 +242,7 @@ def main_window(config, ai, tokenizer):
                         assemble = True
                         generate_text(assemble, assembled_context)
         if event == '-SAVEPAIR-':
-            if newline_fix(values['-INPUTBOX-']) == '' or newline_fix(values['-OUTPUTBOX-']) == '':
+            if values['-INPUTBOX-'] == '' or values['-OUTPUTBOX-'] == '':
                 sg.popup_ok('Both text boxes must have text!', title='Error')
             else:
                 # activated should be moved to config to support modes
@@ -197,7 +250,7 @@ def main_window(config, ai, tokenizer):
                     assembled_tokens = tokenize_single_fewshot()
                 else:
                     assembled_tokens = ''
-                tempdict = {'input': newline_fix(values['-INPUTBOX-']), 'output': newline_fix(values['-OUTPUTBOX-']), 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
+                tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
                 tabledata.append(tempdict)
                 tabledisplay = update_table()
                 window['-INPUTBOX-'].update('')
