@@ -61,22 +61,22 @@ def main_window(config, ai, tokenizer):
                             [sg.Slider(range=(0.1, 1.0), resolution=0.1, default_value=config['model_top_p'], key='-MODELTOP-P-', size=(70,25), orientation='horizontal')]]
         # ADD MODEL SELECTION
         # DO IT
-        settings_window = [[sg.Col([[sg.Text('Settings')]], justification='center')],
-                           [sg.Col(settings_text, element_justification='left'), sg.Col(settings_sliders, element_justification='right')],
-                           [sg.Text('_'*105)],
-                           [sg.Text('Both fewshot prefix fields may be left empty if desired.')],
-                           [sg.Text('Fewshot prefix:'), sg.InputText(default_text=config['model_fewshotprefix'].replace('\n','\\n'), key='-FEWSHOTPREFIX-', size=25, pad=((27,0), (0,0)))],
-                           [sg.Col([[sg.Text('After fewshot prefix:'), sg.InputText(default_text=config['model_after_fewshotprefix'].replace('\n','\\n'), key='-AFTER-FEWSHOTPREFIX-', size=25)]], pad=((0,0), (0,10)))],
-                           [sg.Text('Input prefix:'), sg.InputText(default_text=config['model_inputprefix'].replace('\n','\\n'), key='-INPUTPREFIX-', size=25, pad=((43,0), (0,0)))],
-                           [sg.Text('Output prefix:'), sg.InputText(default_text=config['model_outputprefix'].replace('\n','\\n'), key='-OUTPUTPREFIX-', size=25, pad=((35,0), (0,0)))],
-                           [sg.Text('After input prefix:'), sg.InputText(default_text=config['model_after_inputprefix'].replace('\n','\\n'), key='-AFTER-INPUTPREFIX-', size=25, pad=((18,0), (0,0)))],
-                           [sg.Text('After input text:'), sg.InputText(default_text=config['model_after_inputtext'].replace('\n','\\n'), key='-AFTER-INPUTTEXT-', size=25, pad=((26,0), (0,0)))],
-                           [sg.Text('After output prefix:'), sg.InputText(default_text=config['model_after_outputprefix'].replace('\n','\\n'), key='-AFTER-OUTPUTPREFIX-', size=25, pad=((12,0), (0,0)))],
-                           [sg.Col([[sg.Text('After output text:'), sg.InputText(default_text=config['model_after_outputtext'].replace('\n','\\n'), key='-AFTER-OUTPUTTEXT-', size=25, pad=((20,0), (0,0)))]], pad=((0,0), (0,10)))],
-                           [sg.Text('Stop sequence:'), sg.InputText(default_text=config['model_stopsequence'].replace('\n','\\n'), key='-STOPSEQUENCE-', size=25, pad=((25,0), (0,0)))],
-                           [sg.Col([[sg.Button('Reset to defaults', key='-RESETDEFAULTS-'), sg.Button('Save', key='-SAVESETTINGS-'), sg.Button('Exit', key='-EXITSETTINGS-')]], justification='center')]]
+        settings_window_main = [[sg.Col([[sg.Text('Settings')]], justification='center')],
+                                [sg.Col(settings_text, element_justification='left'), sg.Col(settings_sliders, element_justification='right')],
+                                [sg.Text('_'*105)],
+                                [sg.Text('Both fewshot prefix fields may be left empty if desired.')],
+                                [sg.Text('Fewshot prefix:'), sg.InputText(default_text=config['model_fewshotprefix'].replace('\n','\\n'), key='-FEWSHOTPREFIX-', size=25, pad=((27,0), (0,0)))],
+                                [sg.Col([[sg.Text('After fewshot prefix:'), sg.InputText(default_text=config['model_after_fewshotprefix'].replace('\n','\\n'), key='-AFTER-FEWSHOTPREFIX-', size=25)]], pad=((0,0), (0,10)))],
+                                [sg.Text('Input prefix:'), sg.InputText(default_text=config['model_inputprefix'].replace('\n','\\n'), key='-INPUTPREFIX-', size=25, pad=((43,0), (0,0)))],
+                                [sg.Text('Output prefix:'), sg.InputText(default_text=config['model_outputprefix'].replace('\n','\\n'), key='-OUTPUTPREFIX-', size=25, pad=((35,0), (0,0)))],
+                                [sg.Text('After input prefix:'), sg.InputText(default_text=config['model_after_inputprefix'].replace('\n','\\n'), key='-AFTER-INPUTPREFIX-', size=25, pad=((18,0), (0,0)))],
+                                [sg.Text('After input text:'), sg.InputText(default_text=config['model_after_inputtext'].replace('\n','\\n'), key='-AFTER-INPUTTEXT-', size=25, pad=((26,0), (0,0)))],
+                                [sg.Text('After output prefix:'), sg.InputText(default_text=config['model_after_outputprefix'].replace('\n','\\n'), key='-AFTER-OUTPUTPREFIX-', size=25, pad=((12,0), (0,0)))],
+                                [sg.Col([[sg.Text('After output text:'), sg.InputText(default_text=config['model_after_outputtext'].replace('\n','\\n'), key='-AFTER-OUTPUTTEXT-', size=25, pad=((20,0), (0,0)))]], pad=((0,0), (0,10)))],
+                                [sg.Text('Stop sequence:'), sg.InputText(default_text=config['model_stopsequence'].replace('\n','\\n'), key='-STOPSEQUENCE-', size=25, pad=((25,0), (0,0)))],
+                                [sg.Col([[sg.Button('Reset to defaults', key='-RESETDEFAULTS-'), sg.Button('Save', key='-SAVESETTINGS-'), sg.Button('Exit', key='-EXITSETTINGS-')]], justification='center')]]
 
-        return sg.Window('Settings', settings_window, location=(0,0), modal=True)
+        return sg.Window('Settings', settings_window_main, location=(0,0), modal=True)
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
                           [sg.Button('Display selected pair')], # This should generate a popup asking if they're sure - it'll wipe whatever they've already got in there. We don't need to show the popup if they don't have anything in the boxes, though.
@@ -136,10 +136,11 @@ def main_window(config, ai, tokenizer):
                                        length_penalty = config['model_length_pen'],
                                        top_k = int(config['model_top_k']),
                                        top_p = config['model_top_p'])
+            # this all seems bad. find a better way to do this rather than hardcoding the after_outputprefix - technically could replace the stopsequence with something hardcoded but that would not be very useful
             try:
-                gen_stripped_text = gen_text[len(prompt_temp)+len(config['model_stopsequence']):].split(f"{config['model_stopsequence']}", 1)[0]
+                gen_stripped_text = gen_text[len(prompt_temp)+len(config['model_after_outputprefix']):].split(config['model_stopsequence'], 1)[0]
             except:
-                gen_stripped_text = gen_text[len(prompt_temp)+2:]
+                gen_stripped_text = gen_text[len(prompt_temp)+len(config['model_after_outputprefix']):]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
         def tokenize_single_fewshot():
             if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
