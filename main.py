@@ -1,5 +1,4 @@
 import PySimpleGUI as sg
-import platform
 
 from aitextgen import aitextgen
 from transformers import GPT2Tokenizer
@@ -30,6 +29,7 @@ def initialize_config():
     config['model_after_inputtext'] = '\n\n'
     config['model_after_outputprefix'] = '\n\n'
     config['model_after_outputtext'] = '\n\n'
+    config['model_stopsequence_trim'] = 'model_after_outputprefix'
     config['model_stopsequence'] = '\n\nInput:'
     return config
 
@@ -42,6 +42,7 @@ def main_window(config, ai, tokenizer):
     tabledisplay = [['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', '']]
     tabledata = []
     assembled_context = ''
+    trim_dict = {'After input prefix': 'model_after_inputprefix', 'After input text': 'model_after_inputtext', 'After output prefix': 'model_after_outputprefix', 'After output text': 'model_after_outputtext'}
     headings = ["Input", "Output", "Token Count"]
 
     def settings_window():
@@ -73,6 +74,7 @@ def main_window(config, ai, tokenizer):
                                 [sg.Text('After input text:'), sg.InputText(default_text=config['model_after_inputtext'].replace('\n','\\n'), key='-AFTER-INPUTTEXT-', size=25, pad=((26,0), (0,0)))],
                                 [sg.Text('After output prefix:'), sg.InputText(default_text=config['model_after_outputprefix'].replace('\n','\\n'), key='-AFTER-OUTPUTPREFIX-', size=25, pad=((12,0), (0,0)))],
                                 [sg.Col([[sg.Text('After output text:'), sg.InputText(default_text=config['model_after_outputtext'].replace('\n','\\n'), key='-AFTER-OUTPUTTEXT-', size=25, pad=((20,0), (0,0)))]], pad=((0,0), (0,10)))],
+                                [sg.Text('Stop sequence trim:'), sg.Combo(['After input prefix', 'After input text', 'After output prefix', 'After output text'], default_value=[key for key, value in trim_dict.items() if value == config['model_stopsequence_trim']][0], key='-STOPSEQUENCE-TRIM-', size=23, pad=((4,0), (0,0)))],
                                 [sg.Text('Stop sequence:'), sg.InputText(default_text=config['model_stopsequence'].replace('\n','\\n'), key='-STOPSEQUENCE-', size=25, pad=((25,0), (0,0)))],
                                 [sg.Col([[sg.Button('Reset to defaults', key='-RESETDEFAULTS-'), sg.Button('Save', key='-SAVESETTINGS-'), sg.Button('Exit', key='-EXITSETTINGS-')]], justification='center')]]
 
@@ -136,11 +138,10 @@ def main_window(config, ai, tokenizer):
                                        length_penalty = config['model_length_pen'],
                                        top_k = int(config['model_top_k']),
                                        top_p = config['model_top_p'])
-            # this all seems bad. find a better way to do this rather than hardcoding the after_outputprefix - technically could replace the stopsequence with something hardcoded but that would not be very useful
             try:
-                gen_stripped_text = gen_text[len(prompt_temp)+len(config['model_after_outputprefix']):].split(config['model_stopsequence'], 1)[0]
+                gen_stripped_text = gen_text[len(prompt_temp)+len(config[config['model_stopsequence_trim']]):].split(config['model_stopsequence'], 1)[0]
             except:
-                gen_stripped_text = gen_text[len(prompt_temp)+len(config['model_after_outputprefix']):]
+                gen_stripped_text = gen_text[len(prompt_temp)+len(config[config['model_stopsequence_trim']]):]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
         def tokenize_single_fewshot():
             if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
@@ -185,6 +186,7 @@ def main_window(config, ai, tokenizer):
                     config['model_after_inputtext'] = values['-AFTER-INPUTTEXT-'].replace('\\n','\n')
                     config['model_after_outputprefix'] = values['-AFTER-OUTPUTPREFIX-'].replace('\\n','\n')
                     config['model_after_outputtext'] = values['-AFTER-OUTPUTTEXT-'].replace('\\n','\n')
+                    config['model_stopsequence_trim'] = trim_dict[values['-STOPSEQUENCE-TRIM-']]
                     config['model_stopsequence'] = values['-STOPSEQUENCE-'].replace('\\n','\n')
                     if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
                         tokenize_all_fewshots()
@@ -206,6 +208,7 @@ def main_window(config, ai, tokenizer):
                         config['model_after_inputtext'] = '\n\n'
                         config['model_after_outputprefix'] = '\n\n'
                         config['model_after_outputtext'] = '\n\n'
+                        config['model_stopsequence_trim'] = 'model_after_outputprefix'
                         config['model_stopsequence'] = '\n\nInput:'
                         settings['-MODELLENGTH-'].update(config['model_length'])
                         settings['-MODELTEMP-'].update(config['model_temp'])
@@ -221,6 +224,7 @@ def main_window(config, ai, tokenizer):
                         settings['-AFTER-INPUTTEXT-'].update(config['model_after_inputtext'].replace('\n','\\n'))
                         settings['-AFTER-OUTPUTPREFIX-'].update(config['model_after_outputprefix'].replace('\n','\\n'))
                         settings['-AFTER-OUTPUTTEXT-'].update(config['model_after_outputtext'].replace('\n','\\n'))
+                        settings['-STOPSEQUENCE-TRIM-'].update([key for key, value in trim_dict.items() if value == config['model_stopsequence_trim']][0])
                         settings['-STOPSEQUENCE-'].update(config['model_stopsequence'].replace('\n','\\n'))
                         if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
                             tokenize_all_fewshots()
