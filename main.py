@@ -9,7 +9,7 @@ from psutil import virtual_memory
 sg.theme('Dark Blue 3')
 
 def initialize_config():
-    config = sg.UserSettings(filename='config.ini', path='.')
+    config = sg.UserSettings(filename='config.json', path='.')
     config['use_fp16'] = False
     config['gpubool'] = None
     config['nomodel'] = None
@@ -95,7 +95,7 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Testing button!', key='-TESTING-')]]
 
     main_layout = [[sg.Menu(menu_def)],
-                   [sg.Button('Change input prefix', key='-INPUTPREFIX-'), sg.Button('Change output prefix', key='-OUTPUTPREFIX-'), sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-'), sg.Button('Maybe have a text box where all the formatted text goes?')],
+                   [sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-'), sg.Button('Maybe have a text box where all the formatted text goes?')],
                    [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
@@ -260,24 +260,6 @@ def main_window(config, ai, tokenizer):
                 tabledisplay = update_table()
                 window['-INPUTBOX-'].update('')
                 window['-OUTPUTBOX-'].update('')
-        if event == '-INPUTPREFIX-':
-            temp_inputprefix = sg.popup_get_text('Change the input prefix:',
-                                                  title='Change input prefix',
-                                                  default_text=config['model_inputprefix'])
-            if temp_inputprefix is not None:
-                config['model_inputprefix'] = temp_inputprefix
-                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
-                    tokenize_all_fewshots()
-                    tabledisplay = update_table()
-        if event == '-OUTPUTPREFIX-':
-            temp_outputprefix = sg.popup_get_text('Change the output prefix:',
-                                                  title='Change output prefix',
-                                                  default_text=config['model_outputprefix'])
-            if temp_outputprefix is not None:
-                config['model_outputprefix'] = temp_outputprefix
-                if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
-                    tokenize_all_fewshots()
-                    tabledisplay = update_table()
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
@@ -393,11 +375,11 @@ def first_boot(config):
     return config
 
 def main():
-    if not sg.user_settings_file_exists(filename='config.ini', path='.'):
+    if not sg.user_settings_file_exists(filename='config.json', path='.'):
         config = initialize_config()
         config = first_boot(config)
     else:
-        config = sg.UserSettings(filename='config.ini', path='.')
+        config = sg.UserSettings(filename='config.json', path='.')
     if config['nomodel'] == True:
         ai = None
         tokenizer = None
