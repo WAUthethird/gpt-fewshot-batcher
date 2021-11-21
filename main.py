@@ -39,11 +39,11 @@ def main_window(config, ai, tokenizer):
     menu_def = [['&File', ['COULD DO MORE STUFF HERE', '&Settings', 'E&xit']],
             ['&Help', ['&About']]]
 
-    tabledisplay = [['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', '']]
+    tabledisplay = [['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']]
     tabledata = []
     assembled_context = ''
     trim_dict = {'After input prefix': 'model_after_inputprefix', 'After input text': 'model_after_inputtext', 'After output prefix': 'model_after_outputprefix', 'After output text': 'model_after_outputtext'}
-    headings = ["Input", "Output", "Token Count"]
+    headings = ["Input", "Output", "Token Count", "Activated"]
 
     def settings_window():
         text_padding = ((0,0), (16, 15))
@@ -114,16 +114,55 @@ def main_window(config, ai, tokenizer):
     
     while True:
         event, values = window.read()
+        # must do tabledisplay = update_table() in all uses
+        def update_table():
+            tabledisplay = [[x['input'], x['output'], x['tokens'], x['activated']] for x in tabledata]
+            window['-TABLE-'].update(values=tabledisplay)
+            return tabledisplay
         def assemble_context(assembled_context):
             for index, value in enumerate(tabledata):
-                if index == 0:
+                if index == 0 and not value['activated'] is False:
                     assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
-                else:
+                elif not value['activated'] is False:
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
+                else:
+                    assembled = ''
                 assembled_context = f"{assembled_context}{assembled}"
             return assembled_context
+        def tokenize_single_fewshot():
+            if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
+                assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
+            else:
+                assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
+            assembled_tokens = tokenizer.encode(assembled)
+            return assembled_tokens
+        def index_for_deactivation():
+            indexvalidation = False
+            for index, value in enumerate(tabledata):
+                if (index == 0 and value['activated'] is False) or indexvalidation is True:
+                    indexvalidation = True
+                    if value['activated'] is True:
+                        indexvalidation = False
+                        referenceindex = index
+                elif index == 0 and value['activated'] is True:
+                    referenceindex = index
+            return referenceindex
+        def total_token_count():
+            token_count = 0
+            for value in tabledata:
+                if value['activated'] is True:
+                    temp_token_count = value['tokens']
+                    token_count = token_count + temp_token_count
+            return token_count
         def generate_text(assemble, assembled_context):
             if assemble:
+                tokenized_context = tokenizer.encode(assemble_context(assembled_context))
+                tokenized_prompt = tokenizer.encode(f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}")
+                while len(tokenized_prompt) + len(tokenized_context) > (2048 - config['model_length']):
+                    referenceindex = index_for_deactivation()
+                    tabledata[referenceindex]['activated'] = False
+                    tokenized_context = tokenizer.encode(assemble_context(assembled_context))
+                    tokenized_prompt = tokenizer.encode(f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}")
                 assembled_context = assemble_context(assembled_context)
                 prompt_temp = f"{assembled_context}{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
             else:
@@ -143,13 +182,12 @@ def main_window(config, ai, tokenizer):
             except:
                 gen_stripped_text = gen_text[len(prompt_temp)+len(config[config['model_stopsequence_trim']]):]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
-        def tokenize_single_fewshot():
-            if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
-                assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
+
+            if assemble:
+                tabledisplay = update_table()
             else:
-                assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
-            assembled_tokens = tokenizer.encode(assembled)
-            return assembled_tokens
+                tabledisplay = [['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']]
+            return tabledisplay
         def tokenize_all_fewshots():
             for index, value in enumerate(tabledata):
                 if index == 0:
@@ -158,11 +196,6 @@ def main_window(config, ai, tokenizer):
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 assembled_tokens = tokenizer.encode(assembled)
                 value['tokens'] = len(assembled_tokens)
-        # must do tabledisplay = update_table() in all uses
-        def update_table():
-            tabledisplay = [[x['input'], x['output'], x['tokens']] for x in tabledata]
-            window['-TABLE-'].update(values=tabledisplay)
-            return tabledisplay
         if event == sg.WIN_CLOSED:
             break
         if event == '-SETTINGS-':
@@ -188,7 +221,7 @@ def main_window(config, ai, tokenizer):
                     config['model_after_outputtext'] = values['-AFTER-OUTPUTTEXT-'].replace('\\n','\n')
                     config['model_stopsequence_trim'] = trim_dict[values['-STOPSEQUENCE-TRIM-']]
                     config['model_stopsequence'] = values['-STOPSEQUENCE-'].replace('\\n','\n')
-                    if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
+                    if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                         tokenize_all_fewshots()
                         tabledisplay = update_table()
                 if event == '-RESETDEFAULTS-':
@@ -226,40 +259,50 @@ def main_window(config, ai, tokenizer):
                         settings['-AFTER-OUTPUTTEXT-'].update(config['model_after_outputtext'].replace('\n','\\n'))
                         settings['-STOPSEQUENCE-TRIM-'].update([key for key, value in trim_dict.items() if value == config['model_stopsequence_trim']][0])
                         settings['-STOPSEQUENCE-'].update(config['model_stopsequence'].replace('\n','\\n'))
-                        if not tabledisplay[0] == ['', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] == True:
+                        if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                             tokenize_all_fewshots()
                             tabledisplay = update_table()
                 if event == '-EXITSETTINGS-':
                     break
             settings.close()
         if event == '-GENERATE-':
-            if config['nomodel'] == True:
+            if config['nomodel'] is True:
                 sg.popup_ok('You must have a model loaded to generate text!', title='Error')
             else:
                 if values['-INPUTBOX-'] == '':
                     sg.popup_ok('Input box must have text!', title='Error')
                 else:
-                    if tabledisplay[0] == ['', '', ''] or len(tabledisplay) == 0:
+                    if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
                         if sg.popup_yes_no('Are you sure you\'d like to generate text with an empty context?', title='Confirm generation') == 'Yes':
                             assemble = False
-                            generate_text(assemble, assembled_context)
+                            tabledisplay = generate_text(assemble, assembled_context)
                     else:
                         assemble = True
-                        generate_text(assemble, assembled_context)
+                        tabledisplay = generate_text(assemble, assembled_context)
         if event == '-SAVEPAIR-':
             if values['-INPUTBOX-'] == '' or values['-OUTPUTBOX-'] == '':
                 sg.popup_ok('Both text boxes must have text!', title='Error')
             else:
                 # activated should be moved to config to support modes
-                if not config['nomodel'] == True:
+                if not config['nomodel'] is True:
                     assembled_tokens = tokenize_single_fewshot()
+                    token_count = total_token_count()
+                    if len(assembled_tokens) > (2048 - config['model_length']):
+                        sg.popup_ok(f"Your fewshot pair exceeds the maximum allowed length ({2048 - config['model_length']})! Please lower the length and try again.", title='Error')
+                    else:
+                        # THIS SHOULD BE CHECKING FOR WHAT MODE YOU ARE ON AS WELL
+                        while token_count + len(assembled_tokens) > (2048 - config['model_length']):
+                            referenceindex = index_for_deactivation()
+                            tabledata[referenceindex]['activated'] = False
+                            token_count = total_token_count()
                 else:
                     assembled_tokens = ''
-                tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
-                tabledata.append(tempdict)
-                tabledisplay = update_table()
-                window['-INPUTBOX-'].update('')
-                window['-OUTPUTBOX-'].update('')
+                if not len(assembled_tokens) > (2048 - config['model_length']):
+                    tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
+                    tabledata.append(tempdict)
+                    tabledisplay = update_table()
+                    window['-INPUTBOX-'].update('')
+                    window['-OUTPUTBOX-'].update('')
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
@@ -311,9 +354,9 @@ def first_boot(config):
             break
         if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
             window['-SELECT-'].update(visible=True)
-            if config['gpubool'] == True:
+            if config['gpubool'] is True:
                 window['-FP16CHECKBOX-'].update(visible=True)
-            if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] == True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
+            if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] is True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
                 window['-CANTRUNMODEL-'].update(visible=False)
                 window['-CANRUNMODEL-'].update(visible=True)
             else:
@@ -324,8 +367,8 @@ def first_boot(config):
             window['-CANRUNMODEL-'].update(visible=False)
             window['-SELECT-'].update(visible=False)
             window['-FP16CHECKBOX-'].update(visible=False)
-        if event == '-GPUCHECKBOX-' and showgpustuff == True:
-            if values['-GPUCHECKBOX-'] == False:
+        if event == '-GPUCHECKBOX-' and showgpustuff is True:
+            if values['-GPUCHECKBOX-'] is False:
                 gpusupport = 'NO'
                 devicename = f"Will run on {str(cpuinfo.get_cpu_info()['brand_raw'])} instead"
                 deviceramtext = 'System RAM: '
@@ -344,7 +387,7 @@ def first_boot(config):
                 if not values['-MODEL-'] == '' and not values['-MODEL-'] == 'No model':
                     window['-FP16CHECKBOX-'].update(visible=True)
             if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
-                if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] == True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
+                if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] is True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
                     window['-CANTRUNMODEL-'].update(visible=False)
                     window['-CANRUNMODEL-'].update(visible=True)
                 else:
@@ -380,7 +423,7 @@ def main():
         config = first_boot(config)
     else:
         config = sg.UserSettings(filename='config.json', path='.')
-    if config['nomodel'] == True:
+    if config['nomodel'] is True:
         ai = None
         tokenizer = None
     else:
