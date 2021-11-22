@@ -223,6 +223,12 @@ def main_window(config, ai, tokenizer):
                     config['model_stopsequence'] = values['-STOPSEQUENCE-'].replace('\\n','\n')
                     if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                         tokenize_all_fewshots()
+                        token_count_temp = total_token_count()
+                        while token_count_temp > (2048 - config['model_length']):
+                            print('doinathing')
+                            referenceindex = index_for_deactivation()
+                            tabledata[referenceindex]['activated'] = False
+                            token_count_temp = total_token_count()
                         tabledisplay = update_table()
                 if event == '-RESETDEFAULTS-':
                     if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top = True, modal=True) == 'Yes':
@@ -261,6 +267,11 @@ def main_window(config, ai, tokenizer):
                         settings['-STOPSEQUENCE-'].update(config['model_stopsequence'].replace('\n','\\n'))
                         if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                             tokenize_all_fewshots()
+                            token_count_temp = total_token_count()
+                            while token_count_temp > (2048 - config['model_length']):
+                                referenceindex = index_for_deactivation()
+                                tabledata[referenceindex]['activated'] = False
+                                token_count_temp = total_token_count()
                             tabledisplay = update_table()
                 if event == '-EXITSETTINGS-':
                     break
