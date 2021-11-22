@@ -120,20 +120,28 @@ def main_window(config, ai, tokenizer):
             window['-TABLE-'].update(values=tabledisplay)
             return tabledisplay
         def assemble_context(assembled_context):
+            first_index = True
             for index, value in enumerate(tabledata):
-                if index == 0 and not value['activated'] is False:
-                    assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
+                if (index == 0 or first_index is True) and not value['activated'] is False:
+                    assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
+                    first_index = False
                 elif not value['activated'] is False:
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 else:
                     assembled = ''
                 assembled_context = f"{assembled_context}{assembled}"
             return assembled_context
-        def tokenize_single_fewshot():
+        def tokenize_single_fewshot(input_only):
             if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
-                assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
+                if input_only:
+                    assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
+                else:
+                    assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
             else:
-                assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
+                if input_only:
+                    assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}"
+                else:
+                    assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
             assembled_tokens = tokenizer.encode(assembled)
             return assembled_tokens
         def index_for_deactivation():
@@ -157,16 +165,16 @@ def main_window(config, ai, tokenizer):
         def generate_text(assemble, assembled_context):
             if assemble:
                 tokenized_context = tokenizer.encode(assemble_context(assembled_context))
-                tokenized_prompt = tokenizer.encode(f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}")
+                tokenized_prompt = tokenize_single_fewshot(True)
                 while len(tokenized_prompt) + len(tokenized_context) > (2048 - config['model_length']):
                     referenceindex = index_for_deactivation()
                     tabledata[referenceindex]['activated'] = False
                     tokenized_context = tokenizer.encode(assemble_context(assembled_context))
-                    tokenized_prompt = tokenizer.encode(f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}")
+                    tokenized_prompt = tokenize_single_fewshot(True)
                 assembled_context = assemble_context(assembled_context)
                 prompt_temp = f"{assembled_context}{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
             else:
-                prompt_temp = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
+                prompt_temp = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
             prompt_tokens = tokenizer.encode(prompt_temp)
             maxlen = config['model_length'] + len(prompt_tokens)
             gen_text = ai.generate_one(prompt = prompt_temp,
@@ -182,6 +190,7 @@ def main_window(config, ai, tokenizer):
             except:
                 gen_stripped_text = gen_text[len(prompt_temp)+len(config[config['model_stopsequence_trim']]):]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
+            print(prompt_temp)
 
             if assemble:
                 tabledisplay = update_table()
@@ -191,7 +200,7 @@ def main_window(config, ai, tokenizer):
         def tokenize_all_fewshots():
             for index, value in enumerate(tabledata):
                 if index == 0:
-                    assembled = f"{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
+                    assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 else:
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 assembled_tokens = tokenizer.encode(assembled)
@@ -295,7 +304,7 @@ def main_window(config, ai, tokenizer):
             else:
                 # activated should be moved to config to support modes
                 if not config['nomodel'] is True:
-                    assembled_tokens = tokenize_single_fewshot()
+                    assembled_tokens = tokenize_single_fewshot(False)
                     token_count = total_token_count()
                     if len(assembled_tokens) > (2048 - config['model_length']):
                         sg.popup_ok(f"Your fewshot pair exceeds the maximum allowed length ({2048 - config['model_length']})! Please lower the length and try again.", title='Error')
