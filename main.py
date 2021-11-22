@@ -225,7 +225,6 @@ def main_window(config, ai, tokenizer):
                         tokenize_all_fewshots()
                         token_count_temp = total_token_count()
                         while token_count_temp > (2048 - config['model_length']):
-                            print('doinathing')
                             referenceindex = index_for_deactivation()
                             tabledata[referenceindex]['activated'] = False
                             token_count_temp = total_token_count()
