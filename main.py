@@ -190,7 +190,6 @@ def main_window(config, ai, tokenizer):
             except:
                 gen_stripped_text = gen_text[len(prompt_temp)+len(config[config['model_stopsequence_trim']]):]
             window['-OUTPUTBOX-'].update(gen_stripped_text)
-            print(prompt_temp)
 
             if assemble:
                 tabledisplay = update_table()
