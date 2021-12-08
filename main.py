@@ -15,6 +15,7 @@ def initialize_config():
     config['nomodel'] = None
     config['defaultmodel'] = None
     config['model_type'] = None
+    config['model_context'] = 2048
     config['model_length'] = 128
     config['model_temp'] = 0.9
     config['model_rep_pen'] = 1.0
@@ -47,14 +48,16 @@ def main_window(config, ai, tokenizer):
 
     def settings_window():
         text_padding = ((0,0), (16, 15))
-        settings_text = [[sg.Text('Length:', pad=text_padding)],
+        settings_text = [[sg.Text('Model Context:', pad=text_padding)],
+                         [sg.Text('Length:', pad=text_padding)],
                          [sg.Text('Temperature:', pad=text_padding)],
                          [sg.Text('Repetition Penalty:', pad=text_padding)],
                          [sg.Text('Length Penalty:', pad=text_padding)],
                          [sg.Text('Top K:', pad=text_padding)],
                          [sg.Text('Top P:', pad=text_padding)]]
 
-        settings_sliders = [[sg.Slider(range=(20, 500), default_value=config['model_length'], key='-MODELLENGTH-', size=(70,25), orientation='horizontal')],
+        settings_sliders = [[sg.Slider(range=(1024, 2048), default_value=config['model_context'], key='-MODELCONTEXT-', size=(70,25), orientation='horizontal')],
+                            [sg.Slider(range=(20, 500), default_value=config['model_length'], key='-MODELLENGTH-', size=(70,25), orientation='horizontal')],
                             [sg.Slider(range=(0.1, 3.0), resolution=0.1, default_value=config['model_temp'], key='-MODELTEMP-', size=(70,25), orientation='horizontal')],
                             [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_rep_pen'], key='-MODELREP-PEN-', size=(70,25), orientation='horizontal')],
                             [sg.Slider(range=(0.1, 5.0), resolution=0.1, default_value=config['model_length_pen'], key='-MODELLENGTH-PEN-', size=(70,25), orientation='horizontal')],
@@ -81,7 +84,6 @@ def main_window(config, ai, tokenizer):
         return sg.Window('Settings', settings_window_main, location=(0,0), modal=True)
 
     def pair_display_window(pair):
-        #maybe have a refresh button too?
         pair_display_window_main = [[sg.Multiline(pair, size=(100,20), key='-PAIRDISPLAYBOX-', disabled=True)],
                                     [sg.Checkbox('Newline Character Display', default=False, key='-NEWLINECHAR-', enable_events=True)]]
 
@@ -173,7 +175,7 @@ def main_window(config, ai, tokenizer):
             if assemble:
                 tokenized_context = tokenizer.encode(assemble_context(assembled_context))
                 tokenized_prompt = tokenize_single_fewshot(True)
-                while len(tokenized_prompt) + len(tokenized_context) > (2048 - config['model_length']):
+                while len(tokenized_prompt) + len(tokenized_context) > (config['model_context'] - config['model_length']):
                     referenceindex = index_for_deactivation()
                     tabledata[referenceindex]['activated'] = False
                     tokenized_context = tokenizer.encode(assemble_context(assembled_context))
@@ -220,6 +222,7 @@ def main_window(config, ai, tokenizer):
                 if event == sg.WIN_CLOSED:
                     break
                 if event == '-SAVESETTINGS-':
+                    config['model_context'] = values['-MODELCONTEXT-']
                     config['model_length'] = values['-MODELLENGTH-']
                     config['model_temp'] = values['-MODELTEMP-']
                     config['model_rep_pen'] = values['-MODELREP-PEN-']
@@ -239,7 +242,7 @@ def main_window(config, ai, tokenizer):
                     if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                         tokenize_all_fewshots()
                         token_count_temp = total_token_count()
-                        while token_count_temp > (2048 - config['model_length']):
+                        while token_count_temp > (config['model_context'] - config['model_length']):
                             referenceindex = index_for_deactivation()
                             tabledata[referenceindex]['activated'] = False
                             token_count_temp = total_token_count()
@@ -247,6 +250,7 @@ def main_window(config, ai, tokenizer):
                 if event == '-RESETDEFAULTS-':
                     if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top = True, modal=True) == 'Yes':
                         #Replace this with a call to initialize_config() once model switching is up and running
+                        config['model_context'] = 2048
                         config['model_length'] = 128
                         config['model_temp'] = 0.9
                         config['model_rep_pen'] = 1.0
@@ -263,6 +267,7 @@ def main_window(config, ai, tokenizer):
                         config['model_after_outputtext'] = '\n\n'
                         config['model_stopsequence_trim'] = 'model_after_outputprefix'
                         config['model_stopsequence'] = '\n\nInput:'
+                        settings['-MODELCONTEXT-'].update(config['model_context'])
                         settings['-MODELLENGTH-'].update(config['model_length'])
                         settings['-MODELTEMP-'].update(config['model_temp'])
                         settings['-MODELREP-PEN-'].update(config['model_rep_pen'])
@@ -282,7 +287,7 @@ def main_window(config, ai, tokenizer):
                         if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                             tokenize_all_fewshots()
                             token_count_temp = total_token_count()
-                            while token_count_temp > (2048 - config['model_length']):
+                            while token_count_temp > (config['model_context'] - config['model_length']):
                                 referenceindex = index_for_deactivation()
                                 tabledata[referenceindex]['activated'] = False
                                 token_count_temp = total_token_count()
@@ -312,17 +317,17 @@ def main_window(config, ai, tokenizer):
                 if not config['nomodel'] is True:
                     assembled_tokens = tokenize_single_fewshot(False)
                     token_count = total_token_count()
-                    if len(assembled_tokens) > (2048 - config['model_length']):
-                        sg.popup_ok(f"Your fewshot pair exceeds the maximum allowed length ({2048 - config['model_length']})! Please lower the length and try again.", title='Error')
+                    if len(assembled_tokens) > (config['model_context'] - config['model_length']):
+                        sg.popup_ok(f"Your fewshot pair exceeds the maximum allowed length ({config['model_context'] - config['model_length']})! Please lower the length and try again.", title='Error')
                     else:
                         # THIS SHOULD BE CHECKING FOR WHAT MODE YOU ARE ON AS WELL
-                        while token_count + len(assembled_tokens) > (2048 - config['model_length']):
+                        while token_count + len(assembled_tokens) > (config['model_context'] - config['model_length']):
                             referenceindex = index_for_deactivation()
                             tabledata[referenceindex]['activated'] = False
                             token_count = total_token_count()
                 else:
                     assembled_tokens = ''
-                if not len(assembled_tokens) > (2048 - config['model_length']):
+                if not len(assembled_tokens) > (config['model_context'] - config['model_length']):
                     tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
                     tabledata.append(tempdict)
                     tabledisplay = update_table()
