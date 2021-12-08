@@ -13,13 +13,20 @@ def main():
                                     key='-TABLE-',
                                     expand_x=True,
                                     row_height=100,
-                                    row_colors=colors)],
+                                    row_colors=colors,
+                                    enable_events=True,
+                                    select_mode=sg.TABLE_SELECT_MODE_BROWSE)],
                [sg.Button('press me for gaming', key='gamingbutton')]]
     window = sg.Window("Table", layout, modal=True, size=(500,600))
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED:
             break
+        if event == '-TABLE-':
+            indexprint = values[event]
+            valueprint = [data[row] for row in values[event]]
+            print(indexprint)
+            print(valueprint)
         if event == 'gamingbutton':
             window['-TABLE-'].update(row_colors=othercolors)
     window.close()

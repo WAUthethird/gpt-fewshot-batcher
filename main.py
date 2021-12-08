@@ -80,8 +80,15 @@ def main_window(config, ai, tokenizer):
 
         return sg.Window('Settings', settings_window_main, location=(0,0), modal=True)
 
+    def pair_display_window(pair):
+        #maybe have a refresh button too?
+        pair_display_window_main = [[sg.Multiline(pair, size=(100,20), key='-PAIRDISPLAYBOX-', disabled=True)],
+                                    [sg.Checkbox('Newline Character Display', default=False, key='-NEWLINECHAR-', enable_events=True)]]
+
+        return sg.Window('Pair Display', pair_display_window_main, location=(0,0))
+
     side_buttons_table = [[sg.Text('Fewshot List Options')],
-                          [sg.Button('Display selected pair')], # This should generate a popup asking if they're sure - it'll wipe whatever they've already got in there. We don't need to show the popup if they don't have anything in the boxes, though.
+                          [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
                           [sg.Button('Preview trimmed pair(s)')],
                           [sg.Button('Remove selected pair(s)')],
                           [sg.Button('Save fewshots to file')],
@@ -321,6 +328,30 @@ def main_window(config, ai, tokenizer):
                     tabledisplay = update_table()
                     window['-INPUTBOX-'].update('')
                     window['-OUTPUTBOX-'].update('')
+        if event == '-DISPLAYPAIR-':
+            if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to display!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to display!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                sg.popup_ok('Cannot display more than one pair at a time!', title='Error')
+            else:
+                if values['-TABLE-'][0] == 0:
+                    assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{tabledata[values['-TABLE-'][0]]['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{tabledata[values['-TABLE-'][0]]['output']}"
+                else:
+                    assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{tabledata[values['-TABLE-'][0]]['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{tabledata[values['-TABLE-'][0]]['output']}"
+                pairdisplay = pair_display_window(assembled)
+                while True:
+                    event, values = pairdisplay.read()
+                    if event == sg.WIN_CLOSED:
+                        break
+                    if event == '-NEWLINECHAR-':
+                        if values['-NEWLINECHAR-']:
+                            assembled = assembled.replace('\n','\\n')
+                        else:
+                            assembled = assembled.replace('\\n','\n')
+                        pairdisplay['-PAIRDISPLAYBOX-'].update(assembled)
+                pairdisplay.close()
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
