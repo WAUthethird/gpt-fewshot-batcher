@@ -105,6 +105,7 @@ def main_window(config, ai, tokenizer):
 
     main_layout = [[sg.Menu(menu_def)],
                    [sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-'), sg.Button('Maybe have a text box where all the formatted text goes?')],
+                   [sg.Text(f"Tokens: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
                    [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
@@ -128,6 +129,9 @@ def main_window(config, ai, tokenizer):
             tabledisplay = [[x['input'], x['output'], x['tokens'], x['activated']] for x in tabledata]
             window['-TABLE-'].update(values=tabledisplay)
             return tabledisplay
+        def update_token_text():
+            tokencount = [x['tokens'] for x in tabledata]
+            window['-TOKENTEXT-'].update(f"Tokens: {sum(tokencount)}/{int(config['model_context'])}")
         def assemble_context(assembled_context):
             first_index = True
             for index, value in enumerate(tabledata):
@@ -202,6 +206,7 @@ def main_window(config, ai, tokenizer):
 
             if assemble:
                 tabledisplay = update_table()
+                update_token_text()
             else:
                 tabledisplay = [['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']]
             return tabledisplay
@@ -247,6 +252,7 @@ def main_window(config, ai, tokenizer):
                             tabledata[referenceindex]['activated'] = False
                             token_count_temp = total_token_count()
                         tabledisplay = update_table()
+                        update_token_text()
                 if event == '-RESETDEFAULTS-':
                     if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top = True, modal=True) == 'Yes':
                         #Replace this with a call to initialize_config() once model switching is up and running
@@ -292,6 +298,7 @@ def main_window(config, ai, tokenizer):
                                 tabledata[referenceindex]['activated'] = False
                                 token_count_temp = total_token_count()
                             tabledisplay = update_table()
+                            update_token_text()
                 if event == '-EXITSETTINGS-':
                     break
             settings.close()
@@ -331,6 +338,7 @@ def main_window(config, ai, tokenizer):
                     tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
                     tabledata.append(tempdict)
                     tabledisplay = update_table()
+                    update_token_text()
                     window['-INPUTBOX-'].update('')
                     window['-OUTPUTBOX-'].update('')
         if event == '-DISPLAYPAIR-':
