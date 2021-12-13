@@ -252,7 +252,7 @@ def main_window(config, ai, tokenizer):
                             tabledata[referenceindex]['activated'] = False
                             token_count_temp = total_token_count()
                         tabledisplay = update_table()
-                        update_token_text()
+                    update_token_text()
                 if event == '-RESETDEFAULTS-':
                     if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top = True, modal=True) == 'Yes':
                         #Replace this with a call to initialize_config() once model switching is up and running
@@ -298,7 +298,7 @@ def main_window(config, ai, tokenizer):
                                 tabledata[referenceindex]['activated'] = False
                                 token_count_temp = total_token_count()
                             tabledisplay = update_table()
-                            update_token_text()
+                        update_token_text()
                 if event == '-EXITSETTINGS-':
                     break
             settings.close()
