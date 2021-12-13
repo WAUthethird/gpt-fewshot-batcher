@@ -130,7 +130,7 @@ def main_window(config, ai, tokenizer):
             window['-TABLE-'].update(values=tabledisplay)
             return tabledisplay
         def update_token_text():
-            tokencount = [x['tokens'] for x in tabledata]
+            tokencount = [x['tokens'] for x in tabledata if x['activated'] is True]
             window['-TOKENTEXT-'].update(f"Tokens: {sum(tokencount)}/{int(config['model_context'])}")
         def assemble_context(assembled_context):
             first_index = True
