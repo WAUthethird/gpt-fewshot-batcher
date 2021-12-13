@@ -105,7 +105,7 @@ def main_window(config, ai, tokenizer):
 
     main_layout = [[sg.Menu(menu_def)],
                    [sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-'), sg.Button('Maybe have a text box where all the formatted text goes?')],
-                   [sg.Text(f"Tokens: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
+                   [sg.Text(f"Tokens used: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
                    [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
@@ -131,7 +131,7 @@ def main_window(config, ai, tokenizer):
             return tabledisplay
         def update_token_text():
             tokencount = [x['tokens'] for x in tabledata if x['activated'] is True]
-            window['-TOKENTEXT-'].update(f"Tokens: {sum(tokencount)}/{int(config['model_context'])}")
+            window['-TOKENTEXT-'].update(f"Tokens used: {sum(tokencount)}/{int(config['model_context'])}")
         def assemble_context(assembled_context):
             first_index = True
             for index, value in enumerate(tabledata):
