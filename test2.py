@@ -1,6 +1,6 @@
 import PySimpleGUI as sg
 
-data = [["Activated", "Test"], ["User-Activated", "Test"], ["Currently Editing", "Test"], ["Deactivated", "Test"], ["Deactivated by contextual generation", "Test"], ["Will be removed if fewshot saved", "Test"]] #The Deactivated by contextual generation color should go away after a pair is saved - not if another generation happens
+data = [["Activated", "Test"], ["Permanently Activated", "Test"], ["Currently Editing", "Test"], ["Deactivated", "Test"], ["Deactivated by contextual generation", "Test"], ["Will be deactivated if fewshot saved", "Test"]] #The Deactivated by contextual generation color should go away after a pair is saved - not if another generation happens
 headings = ["Name", "Test"]
 colors = ((0, 'green3'), (1, 'darkorchid1'), (2, 'red'), (3, 'gray26'), (4, 'gray40'), (5, 'darkred'))
 othercolors = ((0, 'green'), (1, 'purple'), (2, 'red'), (3, 'grey'), (5, 'darkred'))

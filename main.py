@@ -35,6 +35,7 @@ def initialize_config():
     return config
 
 model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
+colors = {'Activated': 'green3', 'Permanently Activated': 'darkorchid1', 'Editing': 'red', 'Deactivated': 'gray26', 'Pending Deactivation': 'darkred'}
 
 def main_window(config, ai, tokenizer):
     menu_def = [['&File', ['COULD DO MORE STUFF HERE', '&Settings', 'E&xit']],
@@ -44,7 +45,7 @@ def main_window(config, ai, tokenizer):
     tabledata = []
     assembled_context = ''
     trim_dict = {'After input prefix': 'model_after_inputprefix', 'After input text': 'model_after_inputtext', 'After output prefix': 'model_after_outputprefix', 'After output text': 'model_after_outputtext'}
-    headings = ["Input", "Output", "Token Count", "Activated"]
+    headings = ["Input", "Output", "Token Count", "Status"]
 
     def settings_window():
         text_padding = ((0,0), (16, 15))
@@ -90,6 +91,7 @@ def main_window(config, ai, tokenizer):
         return sg.Window('Pair Display', pair_display_window_main, location=(0,0))
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
+                          [sg.Button('Activate/deactivate pair', key='-CHANGEPAIR-')],
                           [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
                           [sg.Button('Preview trimmed pair(s)')],
                           [sg.Button('Remove selected pair(s)')],
@@ -126,19 +128,22 @@ def main_window(config, ai, tokenizer):
         event, values = window.read()
         # must do tabledisplay = update_table() in all uses
         def update_table():
-            tabledisplay = [[x['input'], x['output'], x['tokens'], x['activated']] for x in tabledata]
+            tabledisplay = [[x['input'], x['output'], x['tokens'], x['status']] for x in tabledata]
+            tablecolors = [((index, colors[x['status']])) for index, x in enumerate(tabledata)]
+            print(tablecolors)
             window['-TABLE-'].update(values=tabledisplay)
+            window['-TABLE-'].update(row_colors=tablecolors)
             return tabledisplay
         def update_token_text():
-            tokencount = [x['tokens'] for x in tabledata if x['activated'] is True]
+            tokencount = [x['tokens'] for x in tabledata if x['status'] == 'Activated']
             window['-TOKENTEXT-'].update(f"Tokens used: {sum(tokencount)}/{int(config['model_context'])}")
         def assemble_context(assembled_context):
             first_index = True
             for index, value in enumerate(tabledata):
-                if (index == 0 or first_index is True) and not value['activated'] is False:
+                if (index == 0 or first_index is True) and not value['status'] == 'Deactivated':
                     assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                     first_index = False
-                elif not value['activated'] is False:
+                elif not value['status'] == 'Deactivated':
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 else:
                     assembled = ''
@@ -160,18 +165,18 @@ def main_window(config, ai, tokenizer):
         def index_for_deactivation():
             indexvalidation = False
             for index, value in enumerate(tabledata):
-                if (index == 0 and value['activated'] is False) or indexvalidation is True:
+                if (index == 0 and value['status'] == 'Deactivated') or indexvalidation is True:
                     indexvalidation = True
-                    if value['activated'] is True:
+                    if value['status'] == 'Activated':
                         indexvalidation = False
                         referenceindex = index
-                elif index == 0 and value['activated'] is True:
+                elif index == 0 and value['status'] == 'Activated':
                     referenceindex = index
             return referenceindex
         def total_token_count():
             token_count = 0
             for value in tabledata:
-                if value['activated'] is True:
+                if value['status'] == 'Activated':
                     temp_token_count = value['tokens']
                     token_count = token_count + temp_token_count
             return token_count
@@ -181,7 +186,7 @@ def main_window(config, ai, tokenizer):
                 tokenized_prompt = tokenize_single_fewshot(True)
                 while len(tokenized_prompt) + len(tokenized_context) > (config['model_context'] - config['model_length']):
                     referenceindex = index_for_deactivation()
-                    tabledata[referenceindex]['activated'] = False
+                    tabledata[referenceindex]['status'] = 'Deactivated'
                     tokenized_context = tokenizer.encode(assemble_context(assembled_context))
                     tokenized_prompt = tokenize_single_fewshot(True)
                 assembled_context = assemble_context(assembled_context)
@@ -249,7 +254,7 @@ def main_window(config, ai, tokenizer):
                         token_count_temp = total_token_count()
                         while token_count_temp > (config['model_context'] - config['model_length']):
                             referenceindex = index_for_deactivation()
-                            tabledata[referenceindex]['activated'] = False
+                            tabledata[referenceindex]['status'] = 'Deactivated'
                             token_count_temp = total_token_count()
                         tabledisplay = update_table()
                     update_token_text()
@@ -295,7 +300,7 @@ def main_window(config, ai, tokenizer):
                             token_count_temp = total_token_count()
                             while token_count_temp > (config['model_context'] - config['model_length']):
                                 referenceindex = index_for_deactivation()
-                                tabledata[referenceindex]['activated'] = False
+                                tabledata[referenceindex]['status'] = 'Deactivated'
                                 token_count_temp = total_token_count()
                             tabledisplay = update_table()
                         update_token_text()
@@ -320,7 +325,6 @@ def main_window(config, ai, tokenizer):
             if values['-INPUTBOX-'] == '' or values['-OUTPUTBOX-'] == '':
                 sg.popup_ok('Both text boxes must have text!', title='Error')
             else:
-                # activated should be moved to config to support modes
                 if not config['nomodel'] is True:
                     assembled_tokens = tokenize_single_fewshot(False)
                     token_count = total_token_count()
@@ -330,17 +334,26 @@ def main_window(config, ai, tokenizer):
                         # THIS SHOULD BE CHECKING FOR WHAT MODE YOU ARE ON AS WELL
                         while token_count + len(assembled_tokens) > (config['model_context'] - config['model_length']):
                             referenceindex = index_for_deactivation()
-                            tabledata[referenceindex]['activated'] = False
+                            tabledata[referenceindex]['status'] = 'Deactivated'
                             token_count = total_token_count()
                 else:
                     assembled_tokens = ''
                 if not len(assembled_tokens) > (config['model_context'] - config['model_length']):
-                    tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'activated': True, 'editing': False}
+                    #This should support modes soon
+                    tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'status': 'Activated'} #'permanently_activated': False, 'test_deactivation': False, 'editing': False}
                     tabledata.append(tempdict)
                     tabledisplay = update_table()
                     update_token_text()
                     window['-INPUTBOX-'].update('')
                     window['-OUTPUTBOX-'].update('')
+        if event == '-CHANGEPAIR-':
+            if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to change!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to change!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                #Consider changing this
+                sg.popup_ok('Cannot change more than one pair at a time!', title='Error')
         if event == '-DISPLAYPAIR-':
             if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('No pairs to display!', title='Error')
