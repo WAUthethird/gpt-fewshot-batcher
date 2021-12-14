@@ -91,7 +91,9 @@ def main_window(config, ai, tokenizer):
         return sg.Window('Pair Display', pair_display_window_main, location=(0,0))
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
-                          [sg.Button('Activate/deactivate pair', key='-CHANGEPAIR-')],
+                          [sg.Button('Activate pair', key='-ACTIVATEPAIR-')],
+                          [sg.Button('Permanently activate pair', key='-PERMACTIVATEPAIR-')],
+                          [sg.Button('Deactivate pair', key='-DEACTIVATEPAIR-')],
                           [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
                           [sg.Button('Preview trimmed pair(s)')],
                           [sg.Button('Remove selected pair(s)')],
@@ -133,7 +135,7 @@ def main_window(config, ai, tokenizer):
             window['-TABLE-'].update(row_colors=tablecolors)
             return tabledisplay
         def update_token_text():
-            tokencount = [x['tokens'] for x in tabledata if x['status'] == 'Activated']
+            tokencount = [x['tokens'] for x in tabledata if x['status'] == 'Activated' or x['status'] == 'Permanently Activated']
             window['-TOKENTEXT-'].update(f"Tokens used: {sum(tokencount)}/{int(config['model_context'])}")
         def assemble_context(assembled_context):
             first_index = True
@@ -163,7 +165,7 @@ def main_window(config, ai, tokenizer):
         def index_for_deactivation():
             indexvalidation = False
             for index, value in enumerate(tabledata):
-                if (index == 0 and value['status'] == 'Deactivated') or indexvalidation is True:
+                if (index == 0 and (value['status'] == 'Deactivated' or value['status'] == 'Permanently Activated')) or indexvalidation is True:
                     indexvalidation = True
                     if value['status'] == 'Activated':
                         indexvalidation = False
@@ -174,7 +176,7 @@ def main_window(config, ai, tokenizer):
         def total_token_count():
             token_count = 0
             for value in tabledata:
-                if value['status'] == 'Activated':
+                if value['status'] == 'Activated' or value['status'] == 'Permanently Activated':
                     temp_token_count = value['tokens']
                     token_count = token_count + temp_token_count
             return token_count
@@ -230,6 +232,7 @@ def main_window(config, ai, tokenizer):
                 if event == sg.WIN_CLOSED:
                     break
                 if event == '-SAVESETTINGS-':
+                    temp_settingsdict = {'model_context': config['model_context'], 'model_length': config['model_length'], 'model_fewshotprefix': config['model_fewshotprefix'], 'model_after_fewshotprefix': config['model_after_fewshotprefix'], 'model_inputprefix': config['model_inputprefix'], 'model_outputprefix': config['model_outputprefix'], 'model_after_inputprefix': config['model_after_inputprefix'], 'model_after_inputtext': config['model_after_inputtext'], 'model_after_outputprefix': config['model_after_outputprefix'], 'model_after_outputtext': config['model_after_outputtext']}
                     config['model_context'] = values['-MODELCONTEXT-']
                     config['model_length'] = values['-MODELLENGTH-']
                     config['model_temp'] = values['-MODELTEMP-']
@@ -248,6 +251,19 @@ def main_window(config, ai, tokenizer):
                     config['model_stopsequence_trim'] = trim_dict[values['-STOPSEQUENCE-TRIM-']]
                     config['model_stopsequence'] = values['-STOPSEQUENCE-'].replace('\\n','\n')
                     if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
+                        tokencount_permactivated = [x['tokens'] for x in tabledata if x['status'] == 'Permanently Activated']
+                        if sum(tokencount_permactivated) > (config['model_context'] - config['model_length']):
+                            sg.popup_ok('Token sum of permanently activated fewshots exceeds model context!', title='Error')
+                            config['model_context'] = temp_settingsdict['model_context']
+                            config['model_length'] = temp_settingsdict['model_length']
+                            config['model_fewshotprefix'] = temp_settingsdict['model_fewshotprefix'].replace('\\n','\n')
+                            config['model_after_fewshotprefix'] = temp_settingsdict['model_after_fewshotprefix'].replace('\\n','\n')
+                            config['model_inputprefix'] = temp_settingsdict['model_inputprefix'].replace('\\n','\n')
+                            config['model_outputprefix'] = temp_settingsdict['model_outputprefix'].replace('\\n','\n')
+                            config['model_after_inputprefix'] = temp_settingsdict['model_after_inputprefix'].replace('\\n','\n')
+                            config['model_after_inputtext'] = temp_settingsdict['model_after_inputtext'].replace('\\n','\n')
+                            config['model_after_outputprefix'] = temp_settingsdict['model_after_outputprefix'].replace('\\n','\n')
+                            config['model_after_outputtext'] = temp_settingsdict['model_after_outputtext'].replace('\\n','\n')
                         tokenize_all_fewshots()
                         token_count_temp = total_token_count()
                         while token_count_temp > (config['model_context'] - config['model_length']):
@@ -256,8 +272,19 @@ def main_window(config, ai, tokenizer):
                             token_count_temp = total_token_count()
                         tabledisplay = update_table()
                     update_token_text()
+                    settings['-MODELCONTEXT-'].update(config['model_context'])
+                    settings['-MODELLENGTH-'].update(config['model_length'])
+                    settings['-FEWSHOTPREFIX-'].update(config['model_fewshotprefix'])
+                    settings['-AFTER-FEWSHOTPREFIX-'].update(config['model_after_fewshotprefix'])
+                    settings['-INPUTPREFIX-'].update(config['model_inputprefix'])
+                    settings['-OUTPUTPREFIX-'].update(config['model_outputprefix'])
+                    settings['-AFTER-INPUTPREFIX-'].update(config['model_after_inputprefix'].replace('\n','\\n'))
+                    settings['-AFTER-INPUTTEXT-'].update(config['model_after_inputtext'].replace('\n','\\n'))
+                    settings['-AFTER-OUTPUTPREFIX-'].update(config['model_after_outputprefix'].replace('\n','\\n'))
+                    settings['-AFTER-OUTPUTTEXT-'].update(config['model_after_outputtext'].replace('\n','\\n'))
                 if event == '-RESETDEFAULTS-':
                     if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top = True, modal=True) == 'Yes':
+                        temp_settingsdict = {'model_context': config['model_context'], 'model_length': config['model_length'], 'model_fewshotprefix': config['model_fewshotprefix'], 'model_after_fewshotprefix': config['model_after_fewshotprefix'], 'model_inputprefix': config['model_inputprefix'], 'model_outputprefix': config['model_outputprefix'], 'model_after_inputprefix': config['model_after_inputprefix'], 'model_after_inputtext': config['model_after_inputtext'], 'model_after_outputprefix': config['model_after_outputprefix'], 'model_after_outputtext': config['model_after_outputtext']}
                         #Replace this with a call to initialize_config() once model switching is up and running
                         config['model_context'] = 2048
                         config['model_length'] = 128
@@ -276,6 +303,28 @@ def main_window(config, ai, tokenizer):
                         config['model_after_outputtext'] = '\n\n'
                         config['model_stopsequence_trim'] = 'model_after_outputprefix'
                         config['model_stopsequence'] = '\n\nInput:'
+                        if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
+                            tokencount_permactivated = [x['tokens'] for x in tabledata if x['status'] == 'Permanently Activated']
+                            if sum(tokencount_permactivated) > (config['model_context'] - config['model_length']):
+                                sg.popup_ok('Token sum of permanently activated fewshots exceeds model context!', title='Error')
+                                config['model_context'] = temp_settingsdict['model_context']
+                                config['model_length'] = temp_settingsdict['model_length']
+                                config['model_fewshotprefix'] = temp_settingsdict['model_fewshotprefix'].replace('\\n','\n')
+                                config['model_after_fewshotprefix'] = temp_settingsdict['model_after_fewshotprefix'].replace('\\n','\n')
+                                config['model_inputprefix'] = temp_settingsdict['model_inputprefix'].replace('\\n','\n')
+                                config['model_outputprefix'] = temp_settingsdict['model_outputprefix'].replace('\\n','\n')
+                                config['model_after_inputprefix'] = temp_settingsdict['model_after_inputprefix'].replace('\\n','\n')
+                                config['model_after_inputtext'] = temp_settingsdict['model_after_inputtext'].replace('\\n','\n')
+                                config['model_after_outputprefix'] = temp_settingsdict['model_after_outputprefix'].replace('\\n','\n')
+                                config['model_after_outputtext'] = temp_settingsdict['model_after_outputtext'].replace('\\n','\n')
+                            tokenize_all_fewshots()
+                            token_count_temp = total_token_count()
+                            while token_count_temp > (config['model_context'] - config['model_length']):
+                                referenceindex = index_for_deactivation()
+                                tabledata[referenceindex]['status'] = 'Deactivated'
+                                token_count_temp = total_token_count()
+                            tabledisplay = update_table()
+                        update_token_text()
                         settings['-MODELCONTEXT-'].update(config['model_context'])
                         settings['-MODELLENGTH-'].update(config['model_length'])
                         settings['-MODELTEMP-'].update(config['model_temp'])
@@ -293,15 +342,6 @@ def main_window(config, ai, tokenizer):
                         settings['-AFTER-OUTPUTTEXT-'].update(config['model_after_outputtext'].replace('\n','\\n'))
                         settings['-STOPSEQUENCE-TRIM-'].update([key for key, value in trim_dict.items() if value == config['model_stopsequence_trim']][0])
                         settings['-STOPSEQUENCE-'].update(config['model_stopsequence'].replace('\n','\\n'))
-                        if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
-                            tokenize_all_fewshots()
-                            token_count_temp = total_token_count()
-                            while token_count_temp > (config['model_context'] - config['model_length']):
-                                referenceindex = index_for_deactivation()
-                                tabledata[referenceindex]['status'] = 'Deactivated'
-                                token_count_temp = total_token_count()
-                            tabledisplay = update_table()
-                        update_token_text()
                 if event == '-EXITSETTINGS-':
                     break
             settings.close()
@@ -329,29 +369,89 @@ def main_window(config, ai, tokenizer):
                     if len(assembled_tokens) > (config['model_context'] - config['model_length']):
                         sg.popup_ok(f"Your fewshot pair exceeds the maximum allowed length ({config['model_context'] - config['model_length']})! Please lower the length and try again.", title='Error')
                     else:
-                        # THIS SHOULD BE CHECKING FOR WHAT MODE YOU ARE ON AS WELL
-                        while token_count + len(assembled_tokens) > (config['model_context'] - config['model_length']):
-                            referenceindex = index_for_deactivation()
-                            tabledata[referenceindex]['status'] = 'Deactivated'
-                            token_count = total_token_count()
+                        tokencount_permactivated = [x['tokens'] for x in tabledata if x['status'] == 'Permanently Activated']
+                        if (sum(tokencount_permactivated) + len(assembled_tokens))> (config['model_context'] - config['model_length']):
+                            save_activated = False
+                        else:
+                            save_activated = True
+                            # THIS SHOULD BE CHECKING FOR WHAT MODE YOU ARE ON AS WELL
+                            while token_count + len(assembled_tokens) > (config['model_context'] - config['model_length']):
+                                referenceindex = index_for_deactivation()
+                                tabledata[referenceindex]['status'] = 'Deactivated'
+                                token_count = total_token_count()
                 else:
                     assembled_tokens = ''
+                    save_activated = True
                 if not len(assembled_tokens) > (config['model_context'] - config['model_length']):
                     #This should support modes soon
-                    tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'status': 'Activated'} #'permanently_activated': False, 'test_deactivation': False, 'editing': False}
+                    if save_activated:
+                        tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'status': 'Activated'}
+                    else:
+                        tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'status': 'Deactivated'}
                     tabledata.append(tempdict)
                     tabledisplay = update_table()
                     update_token_text()
                     window['-INPUTBOX-'].update('')
                     window['-OUTPUTBOX-'].update('')
-        if event == '-CHANGEPAIR-':
+        if event == '-ACTIVATEPAIR-':
             if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
-                sg.popup_ok('No pairs to change!', title='Error')
+                sg.popup_ok('No pairs to activate!', title='Error')
             elif values['-TABLE-'] == []:
-                sg.popup_ok('Must select a pair to change!', title='Error')
+                sg.popup_ok('Must select a pair to activate!', title='Error')
             elif len(values['-TABLE-']) > 1:
                 #Consider changing this
-                sg.popup_ok('Cannot change more than one pair at a time!', title='Error')
+                sg.popup_ok('Cannot activate more than one pair at a time!', title='Error')
+            else:
+                if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
+                    tabledata[values['-TABLE-'][0]]['status'] = 'Activated'
+                    tokenize_all_fewshots()
+                    token_count_temp = total_token_count()
+                    while token_count_temp > (config['model_context'] - config['model_length']):
+                        referenceindex = index_for_deactivation()
+                        tabledata[referenceindex]['status'] = 'Deactivated'
+                        token_count_temp = total_token_count()
+                    tabledisplay = update_table()
+                update_token_text()
+        if event == '-PERMACTIVATEPAIR-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to permanently activate!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to permanently activate!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                #Consider changing this
+                sg.popup_ok('Cannot permanently activate more than one pair at a time!', title='Error')
+            else:
+                if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
+                    status_storage = tabledata[values['-TABLE-'][0]]['status']
+                    tabledata[values['-TABLE-'][0]]['status'] = 'Permanently Activated'
+                    tokenize_all_fewshots()
+                    tokencount_permactivated = [x['tokens'] for x in tabledata if x['status'] == 'Permanently Activated']
+                    if sum(tokencount_permactivated) > (config['model_context'] - config['model_length']):
+                        sg.popup_ok('Token sum of permanently activated fewshots would exceed model context!', title='Error')
+                        tabledata[values['-TABLE-'][0]]['status'] = status_storage
+                        tokenize_all_fewshots()
+                    else:
+                        token_count_temp = total_token_count()
+                        while token_count_temp > (config['model_context'] - config['model_length']):
+                            referenceindex = index_for_deactivation()
+                            tabledata[referenceindex]['status'] = 'Deactivated'
+                            token_count_temp = total_token_count()
+                        tabledisplay = update_table()
+                update_token_text()
+        if event == '-DEACTIVATEPAIR-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to deactivate!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to deactivate!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                #Consider changing this
+                sg.popup_ok('Cannot deactivate more than one pair at a time!', title='Error')
+            else:
+                if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
+                    tabledata[values['-TABLE-'][0]]['status'] = 'Deactivated'
+                    tokenize_all_fewshots()
+                    tabledisplay = update_table()
+                update_token_text()
         if event == '-DISPLAYPAIR-':
             if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('No pairs to display!', title='Error')
