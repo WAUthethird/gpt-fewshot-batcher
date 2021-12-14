@@ -41,11 +41,11 @@ def main_window(config, ai, tokenizer):
     menu_def = [['&File', ['COULD DO MORE STUFF HERE', '&Settings', 'E&xit']],
             ['&Help', ['&About']]]
 
-    tabledisplay = [['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']]
+    tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
     tabledata = []
     assembled_context = ''
     trim_dict = {'After input prefix': 'model_after_inputprefix', 'After input text': 'model_after_inputtext', 'After output prefix': 'model_after_outputprefix', 'After output text': 'model_after_outputtext'}
-    headings = ["Input", "Output", "Token Count", "Status"]
+    headings = ["Row", "          Input          ", "          Output          ", "Token Count", "     Status     "]
 
     def settings_window():
         text_padding = ((0,0), (16, 15))
@@ -106,14 +106,13 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Testing button!', key='-TESTING-')]]
 
     main_layout = [[sg.Menu(menu_def)],
-                   [sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-'), sg.Button('Maybe have a text box where all the formatted text goes?')],
+                   [sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-')],
                    [sg.Text(f"Tokens used: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
                    [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
                                     auto_size_columns=True,
                                     justification='center',
                                     num_rows=min(len(tabledisplay), 1000),
-                                    alternating_row_color='darkblue',
                                     key='-TABLE-',
                                     expand_x=True,
                                     row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
@@ -128,7 +127,7 @@ def main_window(config, ai, tokenizer):
         event, values = window.read()
         # must do tabledisplay = update_table() in all uses
         def update_table():
-            tabledisplay = [[x['input'], x['output'], x['tokens'], x['status']] for x in tabledata]
+            tabledisplay = [[index + 1, x['input'], x['output'], x['tokens'], x['status']] for index, x in enumerate(tabledata)]
             tablecolors = [((index, colors[x['status']])) for index, x in enumerate(tabledata)]
             window['-TABLE-'].update(values=tabledisplay)
             window['-TABLE-'].update(row_colors=tablecolors)
@@ -149,7 +148,7 @@ def main_window(config, ai, tokenizer):
                 assembled_context = f"{assembled_context}{assembled}"
             return assembled_context
         def tokenize_single_fewshot(input_only):
-            if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 if input_only:
                     assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
                 else:
@@ -212,7 +211,7 @@ def main_window(config, ai, tokenizer):
                 tabledisplay = update_table()
                 update_token_text()
             else:
-                tabledisplay = [['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']]
+                tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
             return tabledisplay
         def tokenize_all_fewshots():
             for index, value in enumerate(tabledata):
@@ -248,7 +247,7 @@ def main_window(config, ai, tokenizer):
                     config['model_after_outputtext'] = values['-AFTER-OUTPUTTEXT-'].replace('\\n','\n')
                     config['model_stopsequence_trim'] = trim_dict[values['-STOPSEQUENCE-TRIM-']]
                     config['model_stopsequence'] = values['-STOPSEQUENCE-'].replace('\\n','\n')
-                    if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
+                    if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                         tokenize_all_fewshots()
                         token_count_temp = total_token_count()
                         while token_count_temp > (config['model_context'] - config['model_length']):
@@ -294,7 +293,7 @@ def main_window(config, ai, tokenizer):
                         settings['-AFTER-OUTPUTTEXT-'].update(config['model_after_outputtext'].replace('\n','\\n'))
                         settings['-STOPSEQUENCE-TRIM-'].update([key for key, value in trim_dict.items() if value == config['model_stopsequence_trim']][0])
                         settings['-STOPSEQUENCE-'].update(config['model_stopsequence'].replace('\n','\\n'))
-                        if not tabledisplay[0] == ['', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
+                        if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                             tokenize_all_fewshots()
                             token_count_temp = total_token_count()
                             while token_count_temp > (config['model_context'] - config['model_length']):
@@ -313,7 +312,7 @@ def main_window(config, ai, tokenizer):
                 if values['-INPUTBOX-'] == '':
                     sg.popup_ok('Input box must have text!', title='Error')
                 else:
-                    if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
+                    if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                         if sg.popup_yes_no('Are you sure you\'d like to generate text with an empty context?', title='Confirm generation') == 'Yes':
                             assemble = False
                             tabledisplay = generate_text(assemble, assembled_context)
@@ -346,7 +345,7 @@ def main_window(config, ai, tokenizer):
                     window['-INPUTBOX-'].update('')
                     window['-OUTPUTBOX-'].update('')
         if event == '-CHANGEPAIR-':
-            if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('No pairs to change!', title='Error')
             elif values['-TABLE-'] == []:
                 sg.popup_ok('Must select a pair to change!', title='Error')
@@ -354,7 +353,7 @@ def main_window(config, ai, tokenizer):
                 #Consider changing this
                 sg.popup_ok('Cannot change more than one pair at a time!', title='Error')
         if event == '-DISPLAYPAIR-':
-            if tabledisplay[0] == ['', '', '', ''] or len(tabledisplay) == 0:
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('No pairs to display!', title='Error')
             elif values['-TABLE-'] == []:
                 sg.popup_ok('Must select a pair to display!', title='Error')
