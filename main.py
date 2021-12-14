@@ -130,7 +130,6 @@ def main_window(config, ai, tokenizer):
         def update_table():
             tabledisplay = [[x['input'], x['output'], x['tokens'], x['status']] for x in tabledata]
             tablecolors = [((index, colors[x['status']])) for index, x in enumerate(tabledata)]
-            print(tablecolors)
             window['-TABLE-'].update(values=tabledisplay)
             window['-TABLE-'].update(row_colors=tablecolors)
             return tabledisplay
