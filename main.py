@@ -1,4 +1,5 @@
 import PySimpleGUI as sg
+import json
 
 from aitextgen import aitextgen
 from transformers import GPT2Tokenizer
@@ -95,6 +96,20 @@ def main_window(config, ai, tokenizer):
 
         return sg.Window('Pair Display', pair_display_window_main, location=(0, 0))
 
+    def save_fewshots_window():
+        save_fewshots_window_main = [[sg.Text('File Save')],
+                                     [sg.InputText(key='-SAVEPATH-')],
+                                     [sg.SaveAs('Browse', target='-SAVEPATH-'), sg.Ok(key='-SAVEOK-')]]
+
+        return sg.Window('Save fewshots', save_fewshots_window_main, location=(0, 0))
+
+    def load_fewshots_window():
+        load_fewshots_window_main = [[sg.Text('File Load')],
+                                     [sg.InputText(key='-LOADPATH-')],
+                                     [sg.FileBrowse('Browse', target='-LOADPATH-'), sg.Ok(key='-LOADOK-')]]
+
+        return sg.Window('Load fewshots', load_fewshots_window_main, location=(0, 0))
+
     side_buttons_table = [[sg.Text('Fewshot List Options')],
                           [sg.Button('Activate pair', key='-ACTIVATEPAIR-')],
                           [sg.Button('Permanently activate pair', key='-PERMACTIVATEPAIR-')],
@@ -102,17 +117,16 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
                           [sg.Button('Edit selected pair', key='-EDITPAIR-')],
                           [sg.Button('Remove selected pair', key='-REMOVEPAIR-')],
-                          [sg.Button('Save fewshots to file', key='-SAVEFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
-                          [sg.Button('Load fewshots from file', key='-LOADFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
-                          [sg.Button('Clear fewshot table', key='-CLEARFEWSHOTS-')]] # Add detection logic for anything currently being edited and refuse to do it
+                          [sg.Button('Save fewshots to file', key='-SAVEFEWSHOTS-')],
+                          [sg.Button('Load fewshots from file', key='-LOADFEWSHOTS-')],
+                          [sg.Button('Clear fewshot table', key='-CLEARFEWSHOTS-')]]
     side_buttons_input = [[sg.Text('Current Pair Options', key='-CURRENTPAIRTEXT-')],
                           [sg.Button('Save pair to table', key='-SAVEPAIR-'), sg.Button('Save edits', visible=False, key='-SAVEEDITS-'), sg.Button('Discard edits', visible=False, key='-DISCARDEDITS-')],
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
-                          [sg.Button('Clear input and output', key='-CLEAR-')],
-                          [sg.Button('Testing button!', key='-TESTING-')]]
+                          [sg.Button('Clear input and output', key='-CLEAR-')]]
 
     main_layout = [[sg.Menu(menu_def)],
-                   [sg.Button('Export'), sg.Button('Settings', key='-SETTINGS-')],
+                   [sg.Button('Settings', key='-SETTINGS-')],
                    [sg.Text(f"Tokens used: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
                    [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
@@ -626,8 +640,47 @@ def main_window(config, ai, tokenizer):
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
                 window['-OUTPUTBOX-'].update('')
-        if event == '-TESTING-':
-            print('I don\'t do anything right now!')
+        if event == '-SAVEFEWSHOTS-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('Nothing to save!', title='Error')
+            elif not next((item for item in tabledata if item['status'] == 'Editing'), None) == None:
+                sg.popup_ok('Cannot save fewshot table while editing is occuring!', title='Error')
+            else:
+                savefewshots = save_fewshots_window()
+                while True:
+                    event, values = savefewshots.read()
+                    if event == sg.WIN_CLOSED:
+                        break
+                    if event == '-SAVEOK-':
+                        with open(values['-SAVEPATH-'], 'w', encoding='utf-8') as f:
+                            json.dump(tabledata, f)
+                        break
+                savefewshots.close()
+        if event == '-LOADFEWSHOTS-':
+            if not next((item for item in tabledata if item['status'] == 'Editing'), None) == None:
+                sg.popup_ok('Cannot load fewshots while editing is occuring!', title='Error')
+            else:
+                loadcheck = False
+                if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                    loadcheck = True
+                else:
+                    if sg.popup_yes_no('Are you sure? This will replace all of your current fewshots with the ones from the file.', title='Confirm load') == 'Yes':
+                        loadcheck = True
+                if loadcheck:
+                    loadfewshots = load_fewshots_window()
+                    while True:
+                        event, values = loadfewshots.read()
+                        if event == sg.WIN_CLOSED:
+                            break
+                        if event == '-LOADOK-':
+                            with open(values['-LOADPATH-'], 'r', encoding='utf-8') as f:
+                                tabledata = json.load(f)
+                                if not config['nomodel'] is True:
+                                    tokenize_all_fewshots()
+                                    tabledisplay = update_table()
+                                    update_token_text()
+                            break
+                    loadfewshots.close()
     window.close()
 
 
