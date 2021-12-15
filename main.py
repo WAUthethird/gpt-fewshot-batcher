@@ -100,14 +100,13 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Permanently activate pair', key='-PERMACTIVATEPAIR-')],
                           [sg.Button('Deactivate pair', key='-DEACTIVATEPAIR-')],
                           [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
-                          [sg.Button('Preview trimmed pair(s)')],
-                          [sg.Button('Remove selected pair(s)')],
-                          [sg.Button('Save fewshots to file')],
-                          [sg.Button('Load fewshots from file')],
-                          [sg.Button('Clear fewshot table')]]
-
-    side_buttons_input = [[sg.Text('Current Pair Options')],
-                          [sg.Button('Save pair to table', key='-SAVEPAIR-')],
+                          [sg.Button('Edit selected pair', key='-EDITPAIR-')],
+                          [sg.Button('Remove selected pair', key='-REMOVEPAIR-')], # Add detection logic for anything currently being edited and refuse to do it if trying to remove the editing pair
+                          [sg.Button('Save fewshots to file', key='-SAVEFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
+                          [sg.Button('Load fewshots from file', key='-LOADFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
+                          [sg.Button('Clear fewshot table', key='-CLEARFEWSHOTS-')]] # Add detection logic for anything currently being edited and refuse to do it (or clear everything except for the edited fewshot, displaying a warning message beforehand about this)
+    side_buttons_input = [[sg.Text('Current Pair Options', key='-CURRENTPAIRTEXT-')],
+                          [sg.Button('Save pair to table', key='-SAVEPAIR-'), sg.Button('Save edits', visible=False, key='-SAVEEDITS-'), sg.Button('Discard edits', visible=False, key='-DISCARDEDITS-')],
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
                           [sg.Button('Clear input and output', key='-CLEAR-')],
                           [sg.Button('Testing button!', key='-TESTING-')]]
@@ -123,9 +122,9 @@ def main_window(config, ai, tokenizer):
                                     key='-TABLE-',
                                     expand_x=True,
                                     row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
-                   [sg.Text('Input')],
+                   [sg.Text('Input', key='-INPUTTEXT-')],
                    [sg.Multiline('', size=(100, 10), key='-INPUTBOX-'), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')],
-                   [sg.Text('Output')],
+                   [sg.Text('Output', key='-OUTPUTTEXT-')],
                    [sg.Multiline('', size=(100, 10), key='-OUTPUTBOX-')]]
 
     window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0, 0))
@@ -135,7 +134,7 @@ def main_window(config, ai, tokenizer):
         # must do tabledisplay = update_table() in all uses
 
         def update_table():
-            tabledisplay = [[index + 1, x['input'], x['output'], x['tokens'], x['status']] for index, x in enumerate(tabledata)]
+            tabledisplay = [[tabledata_index + 1, x['input'], x['output'], x['tokens'], x['status']] for tabledata_index, x in enumerate(tabledata)]
             tablecolors = [((index, colors[x['status']])) for index, x in enumerate(tabledata)]
             window['-TABLE-'].update(values=tabledisplay)
             window['-TABLE-'].update(row_colors=tablecolors)
@@ -420,6 +419,8 @@ def main_window(config, ai, tokenizer):
             elif len(values['-TABLE-']) > 1:
                 # Consider changing this
                 sg.popup_ok('Cannot activate more than one pair at a time!', title='Error')
+            elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
+                sg.popup_ok('Cannot activate/change status of editing pair!', title='Error')
             else:
                 if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                     tabledata[values['-TABLE-'][0]]['status'] = 'Activated'
@@ -429,6 +430,7 @@ def main_window(config, ai, tokenizer):
                         referenceindex = index_for_deactivation()
                         tabledata[referenceindex]['status'] = 'Deactivated'
                         token_count_temp = total_token_count()
+                    editingindex = dict((v['status'], i) for i, v in enumerate(tabledata)).get('Editing', -1)
                     tabledisplay = update_table()
                 update_token_text()
         if event == '-PERMACTIVATEPAIR-':
@@ -439,6 +441,8 @@ def main_window(config, ai, tokenizer):
             elif len(values['-TABLE-']) > 1:
                 # Consider changing this
                 sg.popup_ok('Cannot permanently activate more than one pair at a time!', title='Error')
+            elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
+                sg.popup_ok('Cannot permanently activate/change status of editing pair!', title='Error')
             else:
                 if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                     status_storage = tabledata[values['-TABLE-'][0]]['status']
@@ -455,6 +459,7 @@ def main_window(config, ai, tokenizer):
                             referenceindex = index_for_deactivation()
                             tabledata[referenceindex]['status'] = 'Deactivated'
                             token_count_temp = total_token_count()
+                        editingindex = dict((v['status'], i) for i, v in enumerate(tabledata)).get('Editing', -1)
                         tabledisplay = update_table()
                 update_token_text()
         if event == '-DEACTIVATEPAIR-':
@@ -465,10 +470,13 @@ def main_window(config, ai, tokenizer):
             elif len(values['-TABLE-']) > 1:
                 # Consider changing this
                 sg.popup_ok('Cannot deactivate more than one pair at a time!', title='Error')
+            elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
+                sg.popup_ok('Cannot deactivate/change status of editing pair!', title='Error')
             else:
                 if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
                     tabledata[values['-TABLE-'][0]]['status'] = 'Deactivated'
                     tokenize_all_fewshots()
+                    editingindex = dict((v['status'], i) for i, v in enumerate(tabledata)).get('Editing', -1)
                     tabledisplay = update_table()
                 update_token_text()
         if event == '-DISPLAYPAIR-':
@@ -479,6 +487,8 @@ def main_window(config, ai, tokenizer):
             elif len(values['-TABLE-']) > 1:
                 sg.popup_ok('Cannot display more than one pair at a time!', title='Error')
             else:
+                if tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
+                    sg.popup_ok('Please note that this will show the non-edited version only, until your edits are saved.', title='Alert')
                 if values['-TABLE-'][0] == 0:
                     assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{tabledata[values['-TABLE-'][0]]['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{tabledata[values['-TABLE-'][0]]['output']}"
                 else:
@@ -495,6 +505,91 @@ def main_window(config, ai, tokenizer):
                             assembled = assembled.replace('\\n', '\n')
                         pairdisplay['-PAIRDISPLAYBOX-'].update(assembled)
                 pairdisplay.close()
+        if event == '-EDITPAIR-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to edit!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to edit!', title='Error')
+            elif not next((item for item in tabledata if item['status'] == 'Editing'), None) == None:
+                sg.popup_ok('Cannot edit another pair until current editing is complete!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                sg.popup_ok('Cannot edit more than one pair at a time!', title='Error')
+            else:
+                edit = False
+                if not values['-INPUTBOX-'] == '' or not values['-OUTPUTBOX-'] == '':
+                    if sg.popup_yes_no('This will clear what you currently have in your input/output boxes. Continue?', title='Confirm clear') == 'Yes':
+                        edit = True
+                else:
+                    edit = True
+                if edit:
+                    status_storage = tabledata[values['-TABLE-'][0]]['status']
+                    window['-SAVEPAIR-'].update(visible=False)
+                    window['-SAVEEDITS-'].update(visible=True)
+                    window['-DISCARDEDITS-'].update(visible=True)
+                    tabledata[values['-TABLE-'][0]]['status'] = 'Editing'
+                    editingindex = dict((v['status'], i) for i, v in enumerate(tabledata)).get('Editing', -1)
+                    window['-INPUTBOX-'].update(tabledata[values['-TABLE-'][0]]['input'])
+                    window['-OUTPUTBOX-'].update(tabledata[values['-TABLE-'][0]]['output'])
+                    tabledisplay = update_table()
+                    update_token_text()
+        if event == '-SAVEEDITS-':
+            if values['-INPUTBOX-'] == '' or values['-OUTPUTBOX-'] == '':
+                sg.popup_ok('Both text boxes must have text!', title='Error')
+            else:
+                if sg.popup_yes_no('Are you sure?', title='Confirm save') == 'Yes':
+                    if not config['nomodel'] is True:
+                        quit_save_edit = False
+                        assembled_tokens = tokenize_single_fewshot(False)
+                        token_count = total_token_count()
+                        if len(assembled_tokens) > (config['model_context'] - config['model_length']):
+                            sg.popup_ok(f"Your fewshot pair exceeds the maximum allowed length ({config['model_context'] - config['model_length']})! Please lower the length and try again.", title='Error')
+                        else:
+                            tabledata[editingindex]['status'] = status_storage
+                            input_storage = tabledata[editingindex]['input']
+                            output_storage = tabledata[editingindex]['output']
+                            tabledata[editingindex]['input'] = values['-INPUTBOX-']
+                            tabledata[editingindex]['output'] = values['-OUTPUTBOX-']
+                            tokenize_all_fewshots()
+                            tokencount_permactivated = [x['tokens'] for x in tabledata if x['status'] == 'Permanently Activated']
+                            if (sum(tokencount_permactivated) > (config['model_context'] - config['model_length'])) and status_storage == 'Permanently Activated':
+                                if sg.popup_yes_no('Token sum of permanently activated fewshots would exceed model context! Would you like to save as deactivated?', title='Error') == 'Yes':
+                                    tabledata[editingindex]['status'] = 'Deactivated'
+                                    tokenize_all_fewshots()
+                                else:
+                                    tabledata[editingindex]['status'] = status_storage
+                                    tabledata[editingindex]['input'] = input_storage
+                                    tabledata[editingindex]['output'] = output_storage
+                                    tokenize_all_fewshots()
+                                    quit_save_edit = True
+                            elif (sum(tokencount_permactivated) > (config['model_context'] - config['model_length'])) and status_storage == 'Activated' or status_storage == 'Deactivated':
+                                tabledata[editingindex]['status'] = 'Deactivated'
+                                tokenize_all_fewshots()
+                            else:
+                                token_count_temp = total_token_count()
+                                while token_count_temp > (config['model_context'] - config['model_length']):
+                                    referenceindex = index_for_deactivation()
+                                    tabledata[referenceindex]['status'] = 'Deactivated'
+                                    token_count_temp = total_token_count()
+                            if not quit_save_edit:
+                                window['-INPUTBOX-'].update('')
+                                window['-OUTPUTBOX-'].update('')
+                                window['-SAVEPAIR-'].update(visible=True)
+                                window['-SAVEEDITS-'].update(visible=False)
+                                window['-DISCARDEDITS-'].update(visible=False)
+                                tabledisplay = update_table()
+                                update_token_text()
+        if event == '-DISCARDEDITS-':
+            if sg.popup_yes_no('Are you sure?', title='Confirm discard') == 'Yes':
+                if not config['nomodel'] is True:
+                    tabledata[editingindex]['status'] = status_storage
+                    window['-INPUTBOX-'].update('')
+                    window['-OUTPUTBOX-'].update('')
+                    window['-SAVEPAIR-'].update(visible=True)
+                    window['-SAVEEDITS-'].update(visible=False)
+                    window['-DISCARDEDITS-'].update(visible=False)
+                    tabledisplay = update_table()
+                    update_token_text()
+
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
