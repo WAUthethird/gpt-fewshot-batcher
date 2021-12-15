@@ -110,7 +110,14 @@ def main_window(config, ai, tokenizer):
 
         return sg.Window('Load fewshots', load_fewshots_window_main, location=(0, 0))
 
+    def context_display_window(fewshots):
+        context_display_window_main = [[sg.Multiline(fewshots, size=(100, 20), key='-CONTEXTDISPLAYBOX-', disabled=True)],
+                                       [sg.Checkbox('Newline Character Display', default=False, key='-NEWLINECHAR_CONTEXT-', enable_events=True)]]
+
+        return sg.Window('Context Display', context_display_window_main, location=(0, 0))
+
     side_buttons_table = [[sg.Text('Fewshot List Options')],
+                          [sg.Button('Display context', key='-DISPLAYCONTEXT-')],
                           [sg.Button('Activate pair', key='-ACTIVATEPAIR-')],
                           [sg.Button('Permanently activate pair', key='-PERMACTIVATEPAIR-')],
                           [sg.Button('Deactivate pair', key='-DEACTIVATEPAIR-')],
@@ -681,6 +688,25 @@ def main_window(config, ai, tokenizer):
                                     update_token_text()
                             break
                     loadfewshots.close()
+        if event == '-DISPLAYCONTEXT-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('Nothing to display!', title='Error')
+            else:
+                if not next((item for item in tabledata if item['status'] == 'Editing'), None) == None:
+                    sg.popup_ok('Please note that this will show the non-edited version only, until your edits are saved.', title='Alert')
+                assembled_context_temp = assemble_context(assembled_context)
+                contextdisplay = context_display_window(assembled_context_temp)
+                while True:
+                    event, values = contextdisplay.read()
+                    if event == sg.WIN_CLOSED:
+                        break
+                    if event == '-NEWLINECHAR_CONTEXT-':
+                        if values['-NEWLINECHAR_CONTEXT-']:
+                            assembled_context_temp = assembled_context_temp.replace('\n', '\\n')
+                        else:
+                            assembled_context_temp = assembled_context_temp.replace('\\n', '\n')
+                        contextdisplay['-CONTEXTDISPLAYBOX-'].update(assembled_context_temp)
+                contextdisplay.close()
     window.close()
 
 
