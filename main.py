@@ -11,6 +11,7 @@ sg.theme('Dark Blue 3')
 
 def initialize_config():
     config = sg.UserSettings(filename='config.json', path='.')
+    config['automatic_activation'] = True
     config['use_fp16'] = False
     config['gpubool'] = None
     config['nomodel'] = None
@@ -82,7 +83,8 @@ def main_window(config, ai, tokenizer):
                                 [sg.Text('After output prefix:'), sg.InputText(default_text=config['model_after_outputprefix'].replace('\n', '\\n'), key='-AFTER-OUTPUTPREFIX-', size=25, pad=((12, 0), (0, 0)))],
                                 [sg.Col([[sg.Text('After output text:'), sg.InputText(default_text=config['model_after_outputtext'].replace('\n', '\\n'), key='-AFTER-OUTPUTTEXT-', size=25, pad=((20, 0), (0, 0)))]], pad=((0, 0), (0, 10)))],
                                 [sg.Text('Stop sequence trim:'), sg.Combo(['After input prefix', 'After input text', 'After output prefix', 'After output text'], default_value=[key for key, value in trim_dict.items() if value == config['model_stopsequence_trim']][0], key='-STOPSEQUENCE-TRIM-', size=23, pad=((4, 0), (0, 0)))],
-                                [sg.Text('Stop sequence:'), sg.InputText(default_text=config['model_stopsequence'].replace('\n', '\\n'), key='-STOPSEQUENCE-', size=25, pad=((25, 0), (0, 0)))],
+                                [sg.Col([[sg.Text('Stop sequence:'), sg.InputText(default_text=config['model_stopsequence'].replace('\n', '\\n'), key='-STOPSEQUENCE-', size=25, pad=((25, 0), (0, 0)))]], pad=((0, 0), (0, 10)))],
+                                [sg.Checkbox('Automatic fewshot activation', default=config['automatic_activation'], key='-AUTOMATIC-ACTIVATION-')],
                                 [sg.Col([[sg.Button('Reset to defaults', key='-RESETDEFAULTS-'), sg.Button('Save', key='-SAVESETTINGS-'), sg.Button('Exit', key='-EXITSETTINGS-')]], justification='center')]]
 
         return sg.Window('Settings', settings_window_main, location=(0, 0), modal=True)
@@ -244,6 +246,7 @@ def main_window(config, ai, tokenizer):
                     break
                 if event == '-SAVESETTINGS-':
                     temp_settingsdict = {'model_context': config['model_context'], 'model_length': config['model_length'], 'model_fewshotprefix': config['model_fewshotprefix'], 'model_after_fewshotprefix': config['model_after_fewshotprefix'], 'model_inputprefix': config['model_inputprefix'], 'model_outputprefix': config['model_outputprefix'], 'model_after_inputprefix': config['model_after_inputprefix'], 'model_after_inputtext': config['model_after_inputtext'], 'model_after_outputprefix': config['model_after_outputprefix'], 'model_after_outputtext': config['model_after_outputtext']}
+                    config['automatic_activation'] = values['-AUTOMATIC-ACTIVATION-']
                     config['model_context'] = values['-MODELCONTEXT-']
                     config['model_length'] = values['-MODELLENGTH-']
                     config['model_temp'] = values['-MODELTEMP-']
@@ -297,6 +300,7 @@ def main_window(config, ai, tokenizer):
                     if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top=True, modal=True) == 'Yes':
                         temp_settingsdict = {'model_context': config['model_context'], 'model_length': config['model_length'], 'model_fewshotprefix': config['model_fewshotprefix'], 'model_after_fewshotprefix': config['model_after_fewshotprefix'], 'model_inputprefix': config['model_inputprefix'], 'model_outputprefix': config['model_outputprefix'], 'model_after_inputprefix': config['model_after_inputprefix'], 'model_after_inputtext': config['model_after_inputtext'], 'model_after_outputprefix': config['model_after_outputprefix'], 'model_after_outputtext': config['model_after_outputtext']}
                         # Replace this with a call to initialize_config() once model switching is up and running
+                        config['automatic_activation'] = True
                         config['model_context'] = 2048
                         config['model_length'] = 128
                         config['model_temp'] = 0.9
@@ -336,6 +340,7 @@ def main_window(config, ai, tokenizer):
                                 token_count_temp = total_token_count()
                             tabledisplay = update_table()
                         update_token_text()
+                        settings['-AUTOMATIC-ACTIVATION-'].update(config['automatic_activation'])
                         settings['-MODELCONTEXT-'].update(config['model_context'])
                         settings['-MODELLENGTH-'].update(config['model_length'])
                         settings['-MODELTEMP-'].update(config['model_temp'])
@@ -381,7 +386,7 @@ def main_window(config, ai, tokenizer):
                         sg.popup_ok(f"Your fewshot pair exceeds the maximum allowed length ({config['model_context'] - config['model_length']})! Please lower the length and try again.", title='Error')
                     else:
                         tokencount_permactivated = [x['tokens'] for x in tabledata if x['status'] == 'Permanently Activated']
-                        if (sum(tokencount_permactivated) + len(assembled_tokens)) > (config['model_context'] - config['model_length']):
+                        if (sum(tokencount_permactivated) + len(assembled_tokens)) > (config['model_context'] - config['model_length']) or config['automatic_activation'] is False:
                             save_activated = False
                         else:
                             save_activated = True
@@ -392,7 +397,10 @@ def main_window(config, ai, tokenizer):
                                 token_count = total_token_count()
                 else:
                     assembled_tokens = ''
-                    save_activated = True
+                    if config['automatic_activation']:
+                        save_activated = True
+                    else:
+                        save_activated = False
                 if not len(assembled_tokens) > (config['model_context'] - config['model_length']):
                     # This should support modes soon
                     if save_activated:
