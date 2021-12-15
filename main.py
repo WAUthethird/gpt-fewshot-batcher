@@ -104,7 +104,7 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Remove selected pair', key='-REMOVEPAIR-')],
                           [sg.Button('Save fewshots to file', key='-SAVEFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
                           [sg.Button('Load fewshots from file', key='-LOADFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
-                          [sg.Button('Clear fewshot table', key='-CLEARFEWSHOTS-')]] # Add detection logic for anything currently being edited and refuse to do it (or clear everything except for the edited fewshot, displaying a warning message beforehand about this)
+                          [sg.Button('Clear fewshot table', key='-CLEARFEWSHOTS-')]] # Add detection logic for anything currently being edited and refuse to do it
     side_buttons_input = [[sg.Text('Current Pair Options', key='-CURRENTPAIRTEXT-')],
                           [sg.Button('Save pair to table', key='-SAVEPAIR-'), sg.Button('Save edits', visible=False, key='-SAVEEDITS-'), sg.Button('Discard edits', visible=False, key='-DISCARDEDITS-')],
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
@@ -606,6 +606,18 @@ def main_window(config, ai, tokenizer):
             else:
                 if sg.popup_yes_no('Are you sure?', title='Confirm remove') == 'Yes':
                     tabledata.remove(tabledata[values['-TABLE-'][0]])
+                    if not config['nomodel'] is True:
+                        tokenize_all_fewshots()
+                        tabledisplay = update_table()
+                        update_token_text()
+        if event == '-CLEARFEWSHOTS-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('Nothing to clear!', title='Error')
+            elif not next((item for item in tabledata if item['status'] == 'Editing'), None) == None:
+                sg.popup_ok('Cannot clear fewshot table while editing is occuring!', title='Error')
+            else:
+                if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
+                    tabledata = []
                     if not config['nomodel'] is True:
                         tokenize_all_fewshots()
                         tabledisplay = update_table()
