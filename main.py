@@ -38,7 +38,7 @@ def initialize_config():
 
 
 model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
-colors = {'Activated': 'green3', 'Permanently Activated': 'darkorchid1', 'Editing': 'red', 'Deactivated': 'gray26', 'Pending Deactivation': 'darkred'}
+colors = {'Activated': 'green3', 'Permanently Activated': 'darkorchid1', 'Editing': 'red', 'Deactivated': 'gray26'}
 
 
 def main_window(config, ai, tokenizer):
@@ -101,7 +101,7 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Deactivate pair', key='-DEACTIVATEPAIR-')],
                           [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
                           [sg.Button('Edit selected pair', key='-EDITPAIR-')],
-                          [sg.Button('Remove selected pair', key='-REMOVEPAIR-')], # Add detection logic for anything currently being edited and refuse to do it if trying to remove the editing pair
+                          [sg.Button('Remove selected pair', key='-REMOVEPAIR-')],
                           [sg.Button('Save fewshots to file', key='-SAVEFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
                           [sg.Button('Load fewshots from file', key='-LOADFEWSHOTS-')], # Add detection logic for anything currently being edited and refuse to do it until editing is complete
                           [sg.Button('Clear fewshot table', key='-CLEARFEWSHOTS-')]] # Add detection logic for anything currently being edited and refuse to do it (or clear everything except for the edited fewshot, displaying a warning message beforehand about this)
@@ -134,8 +134,12 @@ def main_window(config, ai, tokenizer):
         # must do tabledisplay = update_table() in all uses
 
         def update_table():
-            tabledisplay = [[tabledata_index + 1, x['input'], x['output'], x['tokens'], x['status']] for tabledata_index, x in enumerate(tabledata)]
-            tablecolors = [((index, colors[x['status']])) for index, x in enumerate(tabledata)]
+            if tabledata == []:
+                tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
+                tablecolors = [(0, 'darkblue'), (1, 'darkblue'), (2, 'darkblue'), (3, 'darkblue'), (4, 'darkblue'), (5, 'darkblue'), ]
+            else:
+                tabledisplay = [[tabledata_index + 1, x['input'], x['output'], x['tokens'], x['status']] for tabledata_index, x in enumerate(tabledata)]
+                tablecolors = [((index, colors[x['status']])) for index, x in enumerate(tabledata)]
             window['-TABLE-'].update(values=tabledisplay)
             window['-TABLE-'].update(row_colors=tablecolors)
             return tabledisplay
@@ -589,7 +593,23 @@ def main_window(config, ai, tokenizer):
                     window['-DISCARDEDITS-'].update(visible=False)
                     tabledisplay = update_table()
                     update_token_text()
-
+        if event == '-REMOVEPAIR-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to remove!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to remove!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                # Consider changing this
+                sg.popup_ok('Cannot remove more than one pair at a time!', title='Error')
+            elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
+                sg.popup_ok('Cannot remove editing pair!', title='Error')
+            else:
+                if sg.popup_yes_no('Are you sure?', title='Confirm remove') == 'Yes':
+                    tabledata.remove(tabledata[values['-TABLE-'][0]])
+                    if not config['nomodel'] is True:
+                        tokenize_all_fewshots()
+                        tabledisplay = update_table()
+                        update_token_text()
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
