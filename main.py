@@ -124,6 +124,8 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
                           [sg.Button('Edit selected pair', key='-EDITPAIR-')],
                           [sg.Button('Remove selected pair', key='-REMOVEPAIR-')],
+                          [sg.Button('Move selected pair up', key='-MOVEPAIRUP-')],
+                          [sg.Button('Move selected pair down', key='-MOVEPAIRDOWN-')],
                           [sg.Button('Save fewshots to file', key='-SAVEFEWSHOTS-')],
                           [sg.Button('Load fewshots from file', key='-LOADFEWSHOTS-')],
                           [sg.Button('Clear fewshot table', key='-CLEARFEWSHOTS-')]]
@@ -707,6 +709,40 @@ def main_window(config, ai, tokenizer):
                             assembled_context_temp = assembled_context_temp.replace('\\n', '\n')
                         contextdisplay['-CONTEXTDISPLAYBOX-'].update(assembled_context_temp)
                 contextdisplay.close()
+        if event == '-MOVEPAIRUP-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to move!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to move!', title='Error')
+            elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
+                sg.popup_ok('Cannot move editing pair!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                sg.popup_ok('Cannot move more than one pair at a time!', title='Error')
+            elif values['-TABLE-'][0] == 0:
+                sg.popup_ok('Cannot move topmost pair up!', title='Error')
+            else:
+                tabledata[values['-TABLE-'][0]], tabledata[values['-TABLE-'][0] - 1] = tabledata[values['-TABLE-'][0] - 1], tabledata[values['-TABLE-'][0]]
+                if not config['nomodel'] is True:
+                    tokenize_all_fewshots()
+                    tabledisplay = update_table()
+                    update_token_text()
+        if event == '-MOVEPAIRDOWN-':
+            if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
+                sg.popup_ok('No pairs to move!', title='Error')
+            elif values['-TABLE-'] == []:
+                sg.popup_ok('Must select a pair to move!', title='Error')
+            elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
+                sg.popup_ok('Cannot move editing pair!', title='Error')
+            elif len(values['-TABLE-']) > 1:
+                sg.popup_ok('Cannot move more than one pair at a time!', title='Error')
+            elif (len(tabledata) - 1) == values['-TABLE-'][0]:
+                sg.popup_ok('Cannot move bottommost pair down!', title='Error')
+            else:
+                tabledata[values['-TABLE-'][0]], tabledata[values['-TABLE-'][0] + 1] = tabledata[values['-TABLE-'][0] + 1], tabledata[values['-TABLE-'][0]]
+                if not config['nomodel'] is True:
+                    tokenize_all_fewshots()
+                    tabledisplay = update_table()
+                    update_token_text()
     window.close()
 
 
