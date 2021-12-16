@@ -43,8 +43,6 @@ colors = {'Activated': 'green3', 'Permanently Activated': 'darkorchid1', 'Editin
 
 
 def main_window(config, ai, tokenizer):
-    menu_def = [['&File', ['COULD DO MORE STUFF HERE', '&Settings', 'E&xit']],
-                ['&Help', ['&About']]]
 
     tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
     tabledata = []
@@ -134,8 +132,7 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
                           [sg.Button('Clear input and output', key='-CLEAR-')]]
 
-    main_layout = [[sg.Menu(menu_def)],
-                   [sg.Button('Settings', key='-SETTINGS-')],
+    main_layout = [[sg.Button('Settings', key='-SETTINGS-')],
                    [sg.Text(f"Tokens used: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
                    [sg.Table(values=tabledisplay, headings=headings, max_col_width=100,
                                     background_color='darkblue',
