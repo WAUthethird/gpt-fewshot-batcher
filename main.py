@@ -141,7 +141,7 @@ def main_window(config, ai, tokenizer):
                                     num_rows=min(len(tabledisplay), 1000),
                                     key='-TABLE-',
                                     expand_x=True,
-                                    row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
+                                    row_height=50), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
                    [sg.Text('Input', key='-INPUTTEXT-')],
                    [sg.Multiline('', size=(100, 10), key='-INPUTBOX-'), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')],
                    [sg.Text('Output', key='-OUTPUTTEXT-')],
