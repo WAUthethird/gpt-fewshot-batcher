@@ -141,7 +141,7 @@ def main_window(config, ai, tokenizer):
                                     num_rows=min(len(tabledisplay), 1000),
                                     key='-TABLE-',
                                     expand_x=True,
-                                    row_height=50), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
+                                    row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
                    [sg.Text('Input', key='-INPUTTEXT-')],
                    [sg.Multiline('', size=(100, 10), key='-INPUTBOX-'), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')],
                    [sg.Text('Output', key='-OUTPUTTEXT-')],
@@ -413,7 +413,6 @@ def main_window(config, ai, tokenizer):
                             save_activated = False
                         else:
                             save_activated = True
-                            # THIS SHOULD BE CHECKING FOR WHAT MODE YOU ARE ON AS WELL
                             while token_count + len(assembled_tokens) > (config['model_context'] - config['model_length']):
                                 referenceindex = index_for_deactivation()
                                 tabledata[referenceindex]['status'] = 'Deactivated'
@@ -425,7 +424,6 @@ def main_window(config, ai, tokenizer):
                     else:
                         save_activated = False
                 if not len(assembled_tokens) > (config['model_context'] - config['model_length']):
-                    # This should support modes soon
                     if save_activated:
                         tempdict = {'input': values['-INPUTBOX-'], 'output': values['-OUTPUTBOX-'], 'tokens': len(assembled_tokens), 'status': 'Activated'}
                     else:
@@ -713,6 +711,8 @@ def main_window(config, ai, tokenizer):
                 sg.popup_ok('Must select a pair to move!', title='Error')
             elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
                 sg.popup_ok('Cannot move editing pair!', title='Error')
+            elif not next((item for item in tabledata if item['status'] == 'Editing'), None) == None:
+                sg.popup_ok('Cannot move pair until current editing is complete!', title='Error')
             elif len(values['-TABLE-']) > 1:
                 sg.popup_ok('Cannot move more than one pair at a time!', title='Error')
             elif values['-TABLE-'][0] == 0:
@@ -730,6 +730,8 @@ def main_window(config, ai, tokenizer):
                 sg.popup_ok('Must select a pair to move!', title='Error')
             elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
                 sg.popup_ok('Cannot move editing pair!', title='Error')
+            elif not next((item for item in tabledata if item['status'] == 'Editing'), None) == None:
+                sg.popup_ok('Cannot move pair until current editing is complete!', title='Error')
             elif len(values['-TABLE-']) > 1:
                 sg.popup_ok('Cannot move more than one pair at a time!', title='Error')
             elif (len(tabledata) - 1) == values['-TABLE-'][0]:
