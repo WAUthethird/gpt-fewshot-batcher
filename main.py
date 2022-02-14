@@ -553,7 +553,8 @@ def main_window(config, ai, tokenizer):
                     window['-INPUTBOX-'].update(tabledata[values['-TABLE-'][0]]['input'])
                     window['-OUTPUTBOX-'].update(tabledata[values['-TABLE-'][0]]['output'])
                     tabledisplay = update_table()
-                    update_token_text()
+                    if not config['nomodel'] is True:
+                        update_token_text()
         if event == '-SAVEEDITS-':
             if values['-INPUTBOX-'] == '' or values['-OUTPUTBOX-'] == '':
                 sg.popup_ok('Both text boxes must have text!', title='Error')
@@ -600,6 +601,16 @@ def main_window(config, ai, tokenizer):
                                 window['-DISCARDEDITS-'].update(visible=False)
                                 tabledisplay = update_table()
                                 update_token_text()
+                    else:
+                        tabledata[editingindex]['status'] = status_storage
+                        tabledata[editingindex]['input'] = values['-INPUTBOX-']
+                        tabledata[editingindex]['output'] = values['-OUTPUTBOX-']
+                        window['-INPUTBOX-'].update('')
+                        window['-OUTPUTBOX-'].update('')
+                        window['-SAVEPAIR-'].update(visible=True)
+                        window['-SAVEEDITS-'].update(visible=False)
+                        window['-DISCARDEDITS-'].update(visible=False)
+                        tabledisplay = update_table()
         if event == '-DISCARDEDITS-':
             if sg.popup_yes_no('Are you sure?', title='Confirm discard') == 'Yes':
                 if not config['nomodel'] is True:
@@ -611,6 +622,14 @@ def main_window(config, ai, tokenizer):
                     window['-DISCARDEDITS-'].update(visible=False)
                     tabledisplay = update_table()
                     update_token_text()
+                else:
+                    tabledata[editingindex]['status'] = status_storage
+                    window['-INPUTBOX-'].update('')
+                    window['-OUTPUTBOX-'].update('')
+                    window['-SAVEPAIR-'].update(visible=True)
+                    window['-SAVEEDITS-'].update(visible=False)
+                    window['-DISCARDEDITS-'].update(visible=False)
+                    tabledisplay = update_table()
         if event == '-REMOVEPAIR-':
             if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('No pairs to remove!', title='Error')
@@ -640,6 +659,8 @@ def main_window(config, ai, tokenizer):
                         tokenize_all_fewshots()
                         tabledisplay = update_table()
                         update_token_text()
+                    else:
+                        tabledisplay = update_table()
         if event == '-CLEAR-':
             if sg.popup_yes_no('Are you sure?', title='Confirm clear') == 'Yes':
                 window['-INPUTBOX-'].update('')
