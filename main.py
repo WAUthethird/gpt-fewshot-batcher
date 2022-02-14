@@ -647,6 +647,8 @@ def main_window(config, ai, tokenizer):
                         tokenize_all_fewshots()
                         tabledisplay = update_table()
                         update_token_text()
+                    else:
+                        tabledisplay = update_table()
         if event == '-CLEARFEWSHOTS-':
             if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('Nothing to clear!', title='Error')
