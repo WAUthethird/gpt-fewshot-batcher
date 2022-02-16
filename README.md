@@ -19,3 +19,8 @@ Among its features are these:
 * Saving/loading fewshots
 
 All in under a thousand lines of code!
+
+<img width="609" alt="Screen Shot 2022-02-15 at 9 21 58 PM" src="https://user-images.githubusercontent.com/17788745/154195675-56df8b5b-9d9b-47ce-8319-367214779178.png">
+<img width="1056" alt="Screen Shot 2022-02-15 at 9 25 54 PM" src="https://user-images.githubusercontent.com/17788745/154196017-21473700-fff1-404c-bd8d-acd221cb19f3.png">
+<img width="1056" alt="Screen Shot 2022-02-15 at 9 32 09 PM" src="https://user-images.githubusercontent.com/17788745/154196667-8556fa54-d503-4db1-8103-2997fe499349.png">
+<img width="754" alt="Screen Shot 2022-02-15 at 9 33 52 PM" src="https://user-images.githubusercontent.com/17788745/154196867-73f094b9-2755-4d0f-83dd-ab124693402f.png">
