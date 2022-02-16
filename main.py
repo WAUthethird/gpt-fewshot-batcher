@@ -131,6 +131,10 @@ def main_window(config, ai, tokenizer):
                           [sg.Button('Save pair to table', key='-SAVEPAIR-'), sg.Button('Save edits', visible=False, key='-SAVEEDITS-'), sg.Button('Discard edits', visible=False, key='-DISCARDEDITS-')],
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
                           [sg.Button('Clear input and output', key='-CLEAR-')]]
+    left_text_input = [[sg.Text('Input', key='-INPUTTEXT-')],
+                       [sg.Multiline('', size=(125, 10), key='-INPUTBOX-')],
+                       [sg.Text('Output', key='-OUTPUTTEXT-')],
+                       [sg.Multiline('', size=(125, 10), key='-OUTPUTBOX-')]]
 
     main_layout = [[sg.Button('Settings', key='-SETTINGS-')],
                    [sg.Text(f"Tokens used: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
@@ -142,10 +146,7 @@ def main_window(config, ai, tokenizer):
                                     key='-TABLE-',
                                     expand_x=True,
                                     row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
-                   [sg.Text('Input', key='-INPUTTEXT-')],
-                   [sg.Multiline('', size=(100, 10), key='-INPUTBOX-'), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')],
-                   [sg.Text('Output', key='-OUTPUTTEXT-')],
-                   [sg.Multiline('', size=(100, 10), key='-OUTPUTBOX-')]]
+                   [sg.Col(left_text_input, justification='left', vertical_alignment='top'), sg.Col(side_buttons_input, justification='right', vertical_alignment='top')]]
 
     window = sg.Window('GPT Fewshot Batcher', main_layout, location=(0, 0))
 
