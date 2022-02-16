@@ -99,14 +99,14 @@ def main_window(config, ai, tokenizer):
                                      [sg.InputText(key='-SAVEPATH-')],
                                      [sg.SaveAs('Browse', target='-SAVEPATH-'), sg.Ok(key='-SAVEOK-')]]
 
-        return sg.Window('Save fewshots', save_fewshots_window_main, location=(0, 0))
+        return sg.Window('Save fewshots', save_fewshots_window_main, location=(0, 0), modal=True)
 
     def load_fewshots_window():
         load_fewshots_window_main = [[sg.Text('File Load')],
                                      [sg.InputText(key='-LOADPATH-')],
                                      [sg.FileBrowse('Browse', target='-LOADPATH-'), sg.Ok(key='-LOADOK-')]]
 
-        return sg.Window('Load fewshots', load_fewshots_window_main, location=(0, 0))
+        return sg.Window('Load fewshots', load_fewshots_window_main, location=(0, 0), modal=True)
 
     def context_display_window(fewshots):
         context_display_window_main = [[sg.Multiline(fewshots, size=(100, 20), key='-CONTEXTDISPLAYBOX-', disabled=True)],
@@ -116,12 +116,12 @@ def main_window(config, ai, tokenizer):
 
     side_buttons_table = [[sg.Text('Fewshot List Options')],
                           [sg.Button('Display context', key='-DISPLAYCONTEXT-')],
-                          [sg.Button('Activate pair', key='-ACTIVATEPAIR-')],
+                          [sg.Button('Activate pair(s)', key='-ACTIVATEPAIR-')],
                           [sg.Button('Permanently activate pair', key='-PERMACTIVATEPAIR-')],
-                          [sg.Button('Deactivate pair', key='-DEACTIVATEPAIR-')],
+                          [sg.Button('Deactivate pair(s)', key='-DEACTIVATEPAIR-')],
                           [sg.Button('Display selected pair', key='-DISPLAYPAIR-')],
                           [sg.Button('Edit selected pair', key='-EDITPAIR-')],
-                          [sg.Button('Remove selected pair', key='-REMOVEPAIR-')],
+                          [sg.Button('Remove selected pair(s)', key='-REMOVEPAIR-')],
                           [sg.Button('Move selected pair up', key='-MOVEPAIRUP-')],
                           [sg.Button('Move selected pair down', key='-MOVEPAIRDOWN-')],
                           [sg.Button('Save fewshots to file', key='-SAVEFEWSHOTS-')],
@@ -320,7 +320,7 @@ def main_window(config, ai, tokenizer):
                     settings['-AFTER-OUTPUTPREFIX-'].update(config['model_after_outputprefix'].replace('\n', '\\n'))
                     settings['-AFTER-OUTPUTTEXT-'].update(config['model_after_outputtext'].replace('\n', '\\n'))
                 if event == '-RESETDEFAULTS-':
-                    if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top=True, modal=True) == 'Yes':
+                    if sg.popup_yes_no('Are you sure you want to reset all settings to defaults?', title="Confirm Reset", keep_on_top=True) == 'Yes':
                         temp_settingsdict = {'model_context': config['model_context'], 'model_length': config['model_length'], 'model_fewshotprefix': config['model_fewshotprefix'], 'model_after_fewshotprefix': config['model_after_fewshotprefix'], 'model_inputprefix': config['model_inputprefix'], 'model_outputprefix': config['model_outputprefix'], 'model_after_inputprefix': config['model_after_inputprefix'], 'model_after_inputtext': config['model_after_inputtext'], 'model_after_outputprefix': config['model_after_outputprefix'], 'model_after_outputtext': config['model_after_outputtext']}
                         # Replace this with a call to initialize_config() once model switching is up and running
                         config['automatic_activation'] = True
@@ -438,14 +438,16 @@ def main_window(config, ai, tokenizer):
                 sg.popup_ok('No pairs to activate!', title='Error')
             elif values['-TABLE-'] == []:
                 sg.popup_ok('Must select a pair to activate!', title='Error')
-            elif len(values['-TABLE-']) > 1:
-                # Consider changing this
-                sg.popup_ok('Cannot activate more than one pair at a time!', title='Error')
             elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
                 sg.popup_ok('Cannot activate/change status of editing pair!', title='Error')
             else:
                 if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
-                    tabledata[values['-TABLE-'][0]]['status'] = 'Activated'
+                    if not len(values['-TABLE-']) > 1:
+                        tabledata[values['-TABLE-'][0]]['status'] = 'Activated'
+                    else:
+                        for i in range(len(values['-TABLE-'])):
+                            if not tabledata[values['-TABLE-'][i]]['status'] == 'Editing':
+                                tabledata[values['-TABLE-'][i]]['status'] = 'Activated'
                     tokenize_all_fewshots()
                     token_count_temp = total_token_count()
                     while token_count_temp > (config['model_context'] - config['model_length']):
@@ -489,14 +491,16 @@ def main_window(config, ai, tokenizer):
                 sg.popup_ok('No pairs to deactivate!', title='Error')
             elif values['-TABLE-'] == []:
                 sg.popup_ok('Must select a pair to deactivate!', title='Error')
-            elif len(values['-TABLE-']) > 1:
-                # Consider changing this
-                sg.popup_ok('Cannot deactivate more than one pair at a time!', title='Error')
             elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
                 sg.popup_ok('Cannot deactivate/change status of editing pair!', title='Error')
             else:
                 if not tabledisplay[0] == ['', '', '', '', ''] and not len(tabledisplay) == 0 and not config['nomodel'] is True:
-                    tabledata[values['-TABLE-'][0]]['status'] = 'Deactivated'
+                    if not len(values['-TABLE-']) > 1:
+                        tabledata[values['-TABLE-'][0]]['status'] = 'Deactivated'
+                    else:
+                        for i in range(len(values['-TABLE-'])):
+                            if not tabledata[values['-TABLE-'][i]]['status'] == 'Editing':
+                                tabledata[values['-TABLE-'][i]]['status'] = 'Deactivated'
                     tokenize_all_fewshots()
                     editingindex = dict((v['status'], i) for i, v in enumerate(tabledata)).get('Editing', -1)
                     tabledisplay = update_table()
@@ -635,14 +639,23 @@ def main_window(config, ai, tokenizer):
                 sg.popup_ok('No pairs to remove!', title='Error')
             elif values['-TABLE-'] == []:
                 sg.popup_ok('Must select a pair to remove!', title='Error')
-            elif len(values['-TABLE-']) > 1:
-                # Consider changing this
-                sg.popup_ok('Cannot remove more than one pair at a time!', title='Error')
             elif tabledata[values['-TABLE-'][0]]['status'] == 'Editing':
                 sg.popup_ok('Cannot remove editing pair!', title='Error')
             else:
                 if sg.popup_yes_no('Are you sure?', title='Confirm remove') == 'Yes':
-                    tabledata.remove(tabledata[values['-TABLE-'][0]])
+                    if not len(values['-TABLE-']) > 1:
+                        tabledata.remove(tabledata[values['-TABLE-'][0]])
+                    else:
+                        deletionindex = 0
+                        getindex = False
+                        for i in range(len(values['-TABLE-'])):
+                            if not tabledata[values['-TABLE-'][0 + deletionindex]]['status'] == 'Editing':
+                                tabledata.remove(tabledata[values['-TABLE-'][0 + deletionindex]])
+                            else:
+                                getindex = True
+                                deletionindex += 1
+                    if getindex:
+                        editingindex = dict((v['status'], i) for i, v in enumerate(tabledata)).get('Editing', -1)
                     if not config['nomodel'] is True:
                         tokenize_all_fewshots()
                         tabledisplay = update_table()
@@ -727,7 +740,7 @@ def main_window(config, ai, tokenizer):
                             assembled_context_temp = assembled_context_temp.replace('\\n', '\n')
                         contextdisplay['-CONTEXTDISPLAYBOX-'].update(assembled_context_temp)
                 contextdisplay.close()
-        if event == '-MOVEPAIRUP-':
+        if event == '-MOVEPAIRUP-': # Will add bulk movement soon
             if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('No pairs to move!', title='Error')
             elif values['-TABLE-'] == []:
@@ -746,7 +759,7 @@ def main_window(config, ai, tokenizer):
                     tokenize_all_fewshots()
                     tabledisplay = update_table()
                     update_token_text()
-        if event == '-MOVEPAIRDOWN-':
+        if event == '-MOVEPAIRDOWN-': # Will add bulk movement soon
             if tabledisplay[0] == ['', '', '', '', ''] or len(tabledisplay) == 0:
                 sg.popup_ok('No pairs to move!', title='Error')
             elif values['-TABLE-'] == []:
@@ -860,7 +873,7 @@ def first_boot(config):
         if event == '-FP16CHECKBOX-':
             config['use_fp16'] = values['-FP16CHECKBOX-']
         if event == '-SELECT-' and not values['-MODEL-'] == 'No model':
-            if sg.popup_yes_no(f"Are you sure you want to download the {values['-MODEL-']} model?", title="Confirm Model Selection", keep_on_top=True, modal=True) == 'Yes':
+            if sg.popup_yes_no(f"Are you sure you want to download the {values['-MODEL-']} model?", title="Confirm Model Selection", keep_on_top=True) == 'Yes':
                 if model_info['model_type'][values['-MODEL-']] == 'tf_gpt2':
                     config['defaultmodel'] = model_info['model_type']['tfgpt2'][values['-MODEL-']]
                 else:
@@ -869,7 +882,7 @@ def first_boot(config):
                 config['model_type'] = model_info['model_type'][values['-MODEL-']]
                 break
         if event == '-EXIT-' and (values['-MODEL-'] == 'No model' or not values['-MODEL-']):
-            if sg.popup_yes_no('Are you sure you want to use GPT Fewshot Batcher with no model selected and downloaded? You won\'t be able to generate or tokenize anything!', title="Confirm No Model", keep_on_top=True, modal=True) == 'Yes':
+            if sg.popup_yes_no('Are you sure you want to use GPT Fewshot Batcher with no model selected and downloaded? You won\'t be able to generate or tokenize anything!', title="Confirm No Model", keep_on_top=True) == 'Yes':
                 config['nomodel'] = True
                 break
     window.close()
