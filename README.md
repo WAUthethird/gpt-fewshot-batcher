@@ -7,12 +7,12 @@ I wrote this program to fill a need I saw in AI text management. It's a simple p
 Among its features are these:
 
 * Easy-to-use AI generation and customization
-* Full local model support, with a download manager for common models
-* On the fly model switching
+* Full local model support (soon to come), with a download manager for common models
+* On the fly model switching (soon to come)
 * 'No Model' mode for testing and simple usage
 * Advanced context manager
 * Highly customizable fewshot formatting
-* Activation/deactivation (context addition/removal) of any fewshot
+* Mass activation/deactivation (context addition/removal) of any fewshot
 * Permanent activation (though this has limited use given the fundamental context limit)
 * Context and feature/mode-sensitive fewshot editing
 * Fewshot positional shifting
