@@ -48,7 +48,7 @@ def main_window(config, ai, tokenizer):
     tabledata = []
     assembled_context = ''
     trim_dict = {'After input prefix': 'model_after_inputprefix', 'After input text': 'model_after_inputtext', 'After output prefix': 'model_after_outputprefix', 'After output text': 'model_after_outputtext'}
-    headings = ["Row", "          Input          ", "          Output          ", "Token Count", "     Status     "]
+    headings = ["Row", "         Input         ", "         Output         ", "Token Count", "     Status     "]
 
     def settings_window():
         text_padding = ((0, 0), (16, 15))
