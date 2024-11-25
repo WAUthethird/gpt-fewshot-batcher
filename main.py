@@ -139,7 +139,7 @@ def main_window(config):
                                     background_color='darkblue',
                                     auto_size_columns=True,
                                     justification='center',
-                                    num_rows=min(len(tabledisplay), 1000),
+                                    num_rows=min(len(tabledisplay), 500),
                                     key='-TABLE-',
                                     expand_x=True,
                                     row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
