@@ -228,13 +228,13 @@ def main_window(config):
                 prompt_temp = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
             prompt_tokens = requests.post(f"{url}extra/tokencount", json={"prompt": prompt_temp}).json()["ids"]
             maxlen = config['model_length'] + len(prompt_tokens)
-            model_config = {"max_context_length": config['model_context'],
-                            "max_length": maxlen,
+            model_config = {"max_context_length": int(config['model_context']),
+                            "max_length": int(maxlen),
                             "prompt": prompt_temp,
                             "rep_pen": config['model_rep_pen'],
                             "stop_sequence": [config['model_stopsequence']],
                             "temperature": config['model_temp'],
-                            "top_k": config['model_top_k'],
+                            "top_k": int(config['model_top_k']),
                             "top_p": config['model_top_p']}
             gen_text = requests.post(f"{url}v1/generate", json=model_config).json()["results"][0]["text"]
             gen_stripped_text = gen_text.removeprefix("\n\n").removesuffix(config['model_stopsequence'])
