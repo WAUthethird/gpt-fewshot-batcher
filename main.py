@@ -41,7 +41,7 @@ colors = {'Activated': 'green3', 'Permanently Activated': 'darkorchid1', 'Editin
 
 def main_window(config):
 
-    tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
+    tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
     tabledata = []
     assembled_context = ''
     trim_dict = {'After input prefix': 'model_after_inputprefix', 'After input text': 'model_after_inputtext', 'After output prefix': 'model_after_outputprefix', 'After output text': 'model_after_outputtext'}
@@ -129,9 +129,9 @@ def main_window(config):
                           [sg.Button('(Re)generate output', key='-GENERATE-')],
                           [sg.Button('Clear input and output', key='-CLEAR-')]]
     left_text_input = [[sg.Text('Input', key='-INPUTTEXT-')],
-                       [sg.Multiline('', size=(125, 10), key='-INPUTBOX-')],
+                       [sg.Multiline('', size=(125, 5), key='-INPUTBOX-')],
                        [sg.Text('Output', key='-OUTPUTTEXT-')],
-                       [sg.Multiline('', size=(125, 10), key='-OUTPUTBOX-')]]
+                       [sg.Multiline('', size=(125, 5), key='-OUTPUTBOX-')]]
 
     main_layout = [[sg.Button('Settings', key='-SETTINGS-')],
                    [sg.Text(f"Tokens used: 0/{int(config['model_context'])}", key='-TOKENTEXT-')],
@@ -139,7 +139,7 @@ def main_window(config):
                                     background_color='darkblue',
                                     auto_size_columns=True,
                                     justification='center',
-                                    num_rows=min(len(tabledisplay), 500),
+                                    num_rows=min(len(tabledisplay), 1000),
                                     key='-TABLE-',
                                     expand_x=True,
                                     row_height=100), sg.Col(side_buttons_table, justification='right', vertical_alignment='top')],
@@ -153,7 +153,7 @@ def main_window(config):
 
         def update_table():
             if tabledata == []:
-                tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
+                tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
                 tablecolors = [(0, 'darkblue'), (1, 'darkblue'), (2, 'darkblue'), (3, 'darkblue'), (4, 'darkblue'), (5, 'darkblue'), ]
             else:
                 tabledisplay = [[tabledata_index + 1, x['input'], x['output'], x['tokens'], x['status']] for tabledata_index, x in enumerate(tabledata)]
@@ -243,7 +243,7 @@ def main_window(config):
                 tabledisplay = update_table()
                 update_token_text()
             else:
-                tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
+                tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
             return tabledisplay
 
         def tokenize_all_fewshots():
