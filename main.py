@@ -1,11 +1,9 @@
 import FreeSimpleGUI as sg
-import json
+import json, requests
 
-from aitextgen import aitextgen
-from transformers import GPT2Tokenizer
-import torch
-import cpuinfo
-from psutil import virtual_memory
+
+url = "http://localhost:5001/api/"
+
 
 sg.theme('Dark Blue 3')
 
@@ -38,11 +36,10 @@ def initialize_config():
     return config
 
 
-model_info = {'GPT-Neo 125M': 2, 'GPT-Neo 1.3B': 8, 'GPT-Neo 2.7B': 12, 'GPT-2 124M': 1, 'GPT-2 355M': 4, 'GPT-2 774M': 6, 'GPT-2 1558M': 10, 'model_type': {'GPT-Neo 125M': 'non_gpt2', 'GPT-Neo 1.3B': 'non_gpt2', 'GPT-Neo 2.7B': 'non_gpt2', 'GPT-2 124M': 'tf_gpt2', 'GPT-2 355M': 'tf_gpt2', 'GPT-2 774M': 'tf_gpt2', 'GPT-2 1558M': 'tf_gpt2', 'nongpt2': {'GPT-Neo 125M': 'EleutherAI/gpt-neo-125M', 'GPT-Neo 1.3B': 'EleutherAI/gpt-neo-1.3B', 'GPT-Neo 2.7B': 'EleutherAI/gpt-neo-2.7B'}, 'tfgpt2': {'GPT-2 124M': '124M', 'GPT-2 355M': '355M', 'GPT-2 774M': '774M', 'GPT-2 1558M': '1558M'}}}
 colors = {'Activated': 'green3', 'Permanently Activated': 'darkorchid1', 'Editing': 'red', 'Deactivated': 'gray26'}
 
 
-def main_window(config, ai, tokenizer):
+def main_window(config):
 
     tabledisplay = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']]
     tabledata = []
@@ -193,7 +190,7 @@ def main_window(config, ai, tokenizer):
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}"
                 else:
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{values['-OUTPUTBOX-']}"
-            assembled_tokens = tokenizer.encode(assembled)
+            assembled_tokens = requests.post(f"{url}extra/tokencount", json={"prompt": assembled}).json()["ids"]
             return assembled_tokens
 
         def index_for_deactivation():
@@ -218,31 +215,29 @@ def main_window(config, ai, tokenizer):
 
         def generate_text(assemble, assembled_context):
             if assemble:
-                tokenized_context = tokenizer.encode(assemble_context(assembled_context))
+                tokenized_context = requests.post(f"{url}extra/tokencount", json={"prompt": assemble_context(assembled_context)}).json()["ids"]
                 tokenized_prompt = tokenize_single_fewshot(True)
                 while len(tokenized_prompt) + len(tokenized_context) > (config['model_context'] - config['model_length']):
                     referenceindex = index_for_deactivation()
                     tabledata[referenceindex]['status'] = 'Deactivated'
-                    tokenized_context = tokenizer.encode(assemble_context(assembled_context))
+                    tokenized_context = requests.post(f"{url}extra/tokencount", json={"prompt": assemble_context(assembled_context)}).json()["ids"]
                     tokenized_prompt = tokenize_single_fewshot(True)
                 assembled_context = assemble_context(assembled_context)
                 prompt_temp = f"{assembled_context}{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
             else:
                 prompt_temp = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{values['-INPUTBOX-']}{config['model_after_inputtext']}{config['model_outputprefix']}"
-            prompt_tokens = tokenizer.encode(prompt_temp)
+            prompt_tokens = requests.post(f"{url}extra/tokencount", json={"prompt": prompt_temp}).json()["ids"]
             maxlen = config['model_length'] + len(prompt_tokens)
-            gen_text = ai.generate_one(prompt=prompt_temp,
-                                       min_length=len(prompt_tokens)+1,
-                                       max_length=maxlen,
-                                       temperature=config['model_temp'],
-                                       repetition_penalty=config['model_rep_pen'],
-                                       length_penalty=config['model_length_pen'],
-                                       top_k=int(config['model_top_k']),
-                                       top_p=config['model_top_p'])
-            try:
-                gen_stripped_text = gen_text[len(prompt_temp)+len(config[config['model_stopsequence_trim']]):].split(config['model_stopsequence'], 1)[0]
-            except:
-                gen_stripped_text = gen_text[len(prompt_temp)+len(config[config['model_stopsequence_trim']]):]
+            model_config = {"max_context_length": config['model_context'],
+                            "max_length": maxlen,
+                            "prompt": prompt_temp,
+                            "rep_pen": config['model_rep_pen'],
+                            "stop_sequence": [config['model_stopsequence']],
+                            "temperature": config['model_temp'],
+                            "top_k": config['model_top_k'],
+                            "top_p": config['model_top_p']}
+            gen_text = requests.post(f"{url}v1/generate", json=model_config).json()["results"][0]["text"]
+            gen_stripped_text = gen_text.removeprefix("\n\n").removesuffix(config['model_stopsequence'])
             window['-OUTPUTBOX-'].update(gen_stripped_text)
             if assemble:
                 tabledisplay = update_table()
@@ -257,7 +252,7 @@ def main_window(config, ai, tokenizer):
                     assembled = f"{config['model_fewshotprefix']}{config['model_after_fewshotprefix']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
                 else:
                     assembled = f"{config['model_after_outputtext']}{config['model_inputprefix']}{config['model_after_inputprefix']}{value['input']}{config['model_after_inputtext']}{config['model_outputprefix']}{config['model_after_outputprefix']}{value['output']}"
-                assembled_tokens = tokenizer.encode(assembled)
+                assembled_tokens = requests.post(f"{url}extra/tokencount", json={"prompt": assembled}).json()["ids"]
                 value['tokens'] = len(assembled_tokens)
 
         if event == sg.WIN_CLOSED:
@@ -782,126 +777,12 @@ def main_window(config, ai, tokenizer):
     window.close()
 
 
-def initialize_ai(config):
-    if config['model_type'] == 'tf_gpt2':
-        ai = aitextgen(tf_gpt2=config['defaultmodel'], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/gpt2-{config['defaultmodel']}")
-        tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-    else:
-        ai = aitextgen(model=config['defaultmodel'], to_gpu=config['gpubool'], to_fp16=config['use_fp16'], cache_dir=f"./models/{config['defaultmodel']}")
-        tokenizer = GPT2Tokenizer.from_pretrained(config['defaultmodel'])
-    return ai, tokenizer
-
-
-def first_boot(config):
-    if torch.cuda.is_available():
-        gpusupport = 'YES'
-        showgpustuff = True
-        devicename = torch.cuda.get_device_name()
-        deviceramtext = 'GPU VRAM: '
-        deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 ** 3)))
-        devicecolor = 'lightgreen'
-        config['gpubool'] = True
-    else:
-        gpusupport = 'NO'
-        showgpustuff = False
-        devicename = f"Will run on {str(cpuinfo.get_cpu_info()['brand_raw'])} instead"
-        deviceramtext = 'System RAM: '
-        deviceram = str(round(virtual_memory().total / (1024.0 ** 3)))
-        devicecolor = 'orange'
-        config['gpubool'] = False
-
-    layout = [[sg.Text("First boot detected! It is recommended that you select and download an AI model before continuing.")],
-              [sg.Text("GPU detected:"), sg.Text(f"{gpusupport} - {devicename}", text_color=devicecolor, key='-GPUSUPPORTTEXT-')],
-              [sg.Text(deviceramtext, key='-DEVICERAMPREFIX-'), sg.Text(f"{deviceram} GB", text_color=devicecolor, key='-DEVICERAMTEXT-')],
-              [sg.Checkbox('GPU Enabled', default=showgpustuff, visible=showgpustuff, key='-GPUCHECKBOX-', enable_events=True)],
-              [sg.Text("Available models:")],
-              [sg.Combo(['No model', 'GPT-Neo 125M', 'GPT-Neo 1.3B', 'GPT-Neo 2.7B', 'GPT-2 124M', 'GPT-2 355M', 'GPT-2 774M', 'GPT-2 1558M'], key='-MODEL-', enable_events=True), sg.Checkbox('FP16', default=config['use_fp16'], visible=False, key='-FP16CHECKBOX-', enable_events=True)],
-              [sg.Text("Great! You should be able to run this model!", text_color='lightgreen', visible=False, key='-CANRUNMODEL-'), sg.Text("Uh oh... it looks like you don't meet the minimum memory requirements for this model. You can still try to run it, but it may not work.", text_color='orange', visible=False, key='-CANTRUNMODEL-')],
-              [sg.Column([[sg.Button("Select & Download", key='-SELECT-', visible=False), sg.Button("Exit", key='-EXIT-')]], justification='center', vertical_alignment='top')]]
-    window = sg.Window("Model Selection", layout, modal=True)
-    while True:
-        event, values = window.read()
-        if event == sg.WIN_CLOSED:
-            config['nomodel'] = True
-            break
-        if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
-            window['-SELECT-'].update(visible=True)
-            if config['gpubool'] is True:
-                window['-FP16CHECKBOX-'].update(visible=True)
-            if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] is True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
-                window['-CANTRUNMODEL-'].update(visible=False)
-                window['-CANRUNMODEL-'].update(visible=True)
-            else:
-                window['-CANTRUNMODEL-'].update(visible=True)
-                window['-CANRUNMODEL-'].update(visible=False)
-        else:
-            window['-CANTRUNMODEL-'].update(visible=False)
-            window['-CANRUNMODEL-'].update(visible=False)
-            window['-SELECT-'].update(visible=False)
-            window['-FP16CHECKBOX-'].update(visible=False)
-        if event == '-GPUCHECKBOX-' and showgpustuff is True:
-            if values['-GPUCHECKBOX-'] is False:
-                gpusupport = 'NO'
-                devicename = f"Will run on {str(cpuinfo.get_cpu_info()['brand_raw'])} instead"
-                deviceramtext = 'System RAM: '
-                deviceram = str(round(virtual_memory().total / (1024.0 ** 3)))
-                devicecolor = 'red'
-                config['gpubool'] = False
-                config['use_fp16'] = False
-                window['-FP16CHECKBOX-'].update(visible=False)
-            else:
-                gpusupport = 'YES'
-                devicename = torch.cuda.get_device_name()
-                deviceramtext = 'GPU VRAM: '
-                deviceram = str(round(torch.cuda.get_device_properties(0).total_memory / (1024.0 ** 3)))
-                devicecolor = 'lightgreen'
-                config['gpubool'] = True
-                if not values['-MODEL-'] == '' and not values['-MODEL-'] == 'No model':
-                    window['-FP16CHECKBOX-'].update(visible=True)
-            if values['-MODEL-'] and not values['-MODEL-'] == 'No model':
-                if int(deviceram) >= model_info[values['-MODEL-']] or (values['-FP16CHECKBOX-'] is True and int(deviceram) >= model_info[values['-MODEL-']] // 2):
-                    window['-CANTRUNMODEL-'].update(visible=False)
-                    window['-CANRUNMODEL-'].update(visible=True)
-                else:
-                    window['-CANTRUNMODEL-'].update(visible=True)
-                    window['-CANRUNMODEL-'].update(visible=False)
-            else:
-                window['-CANTRUNMODEL-'].update(visible=False)
-                window['-CANRUNMODEL-'].update(visible=False)
-            window['-DEVICERAMPREFIX-'].update(deviceramtext)
-            window['-GPUSUPPORTTEXT-'].update(f"{gpusupport} - {devicename}", text_color=devicecolor)
-            window['-DEVICERAMTEXT-'].update(f"{deviceram} GB", text_color=devicecolor)
-        if event == '-FP16CHECKBOX-':
-            config['use_fp16'] = values['-FP16CHECKBOX-']
-        if event == '-SELECT-' and not values['-MODEL-'] == 'No model':
-            if sg.popup_yes_no(f"Are you sure you want to download the {values['-MODEL-']} model?", title="Confirm Model Selection", keep_on_top=True) == 'Yes':
-                if model_info['model_type'][values['-MODEL-']] == 'tf_gpt2':
-                    config['defaultmodel'] = model_info['model_type']['tfgpt2'][values['-MODEL-']]
-                else:
-                    config['defaultmodel'] = model_info['model_type']['nongpt2'][values['-MODEL-']]
-                config['nomodel'] = False
-                config['model_type'] = model_info['model_type'][values['-MODEL-']]
-                break
-        if event == '-EXIT-' and (values['-MODEL-'] == 'No model' or not values['-MODEL-']):
-            if sg.popup_yes_no('Are you sure you want to use GPT Fewshot Batcher with no model selected and downloaded? You won\'t be able to generate or tokenize anything!', title="Confirm No Model", keep_on_top=True) == 'Yes':
-                config['nomodel'] = True
-                break
-    window.close()
-    return config
-
-
 def main():
     if not sg.user_settings_file_exists(filename='config.json', path='.'):
         config = initialize_config()
-        config = first_boot(config)
     else:
         config = sg.UserSettings(filename='config.json', path='.')
-    if config['nomodel'] is True:
-        ai = None
-        tokenizer = None
-    else:
-        ai, tokenizer = initialize_ai(config)
-    main_window(config, ai, tokenizer)
+    main_window(config)
 
 
 if __name__ == "__main__":
